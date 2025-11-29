@@ -1,0 +1,146 @@
+# Nova Data Contract Specification
+apiVersion: v3.0.2
+kind: DataContract
+
+name: data.galahad.quolive_manager_industry_type
+version: "1.0.0"
+
+domain: galahad
+dataProduct: galahad_raw
+
+team:
+  - role: dataOwner
+    name: "Sam Sood"
+    email: "sam.sood@canadalife.co.uk"
+  - role: seniorManager
+    name: "Sam Sood"
+    email: "sam.sood@canadalife.co.uk"
+  - role: dataSteward
+    name: "Nikki Cotterell"
+    email: "nikki.cotterell@canadalife.co.uk"
+
+schema:
+  name: bronze_galahad
+  description: "Landing schema for extracted Galahad data"
+  table: quolive_manager_industry_type
+  format: delta
+  
+  properties:
+    - name: INDUSTRY_CODE
+      type: string
+      nullable: false
+      isPrimaryKey: true
+      isChangeTracking: false
+      sensitivity: none
+      
+    - name: INDUSTRY_DESCRIPTION
+      type: string
+      nullable: false
+      isPrimaryKey: false
+      isChangeTracking: true
+      sensitivity: none
+      
+    - name: COVER_LIFE
+      type: string
+      nullable: false
+      isChangeTracking: true
+      
+    - name: COVER_HEALTH
+      type: string
+      nullable: false
+      isChangeTracking: true
+      
+    - name: COVER_CRIT
+      type: string
+      nullable: false
+      isChangeTracking: true
+      
+    - name: ENABLED
+      type: string
+      nullable: false
+      isChangeTracking: true
+
+quality:
+  # ============================================================
+  # CLEANSING RULES (type = transformation)
+  # ============================================================
+  - rule: trim_string_fields
+    type: transformation
+    columns: ["*"]
+    
+  - rule: nullify_empty_strings
+    type: transformation
+    columns: ["INDUSTRY_DESCRIPTION", "INDUSTRY_CODE"]
+    
+  - rule: collapse_whitespace
+    type: transformation
+    columns: ["INDUSTRY_DESCRIPTION"]
+    
+  - rule: normalize_boolean_values
+    type: transformation
+    columns: ["ENABLED"]
+
+  # ============================================================
+  # QUALITY RULES (type = evaluation)
+  # ============================================================
+  - rule: not_blank
+    type: completeness
+    columns: ["INDUSTRY_DESCRIPTION"]
+    severity: critical
+    
+  - rule: digits_only
+    type: validity
+    columns: ["INDUSTRY_CODE"]
+    severity: warning
+    
+  - rule: is_number
+    type: validity
+    columns: ["INDUSTRY_CODE"]
+    severity: warning
+
+customProperties:
+  # ============================================================
+  # PIPELINE CONFIGURATION (REQUIRED FOR FRAMEWORK)
+  # ============================================================
+  pipelineType: ingestion        # ingestion | transformation | validation
+  writeStrategy: scd2            # overwrite | append | scd2 | scd4 | file_export
+  softDelete: true               # For SCD2: mark deleted records as inactive
+  
+  # ============================================================
+  # SOURCE CONFIGURATION
+  # ============================================================
+  sourceType: file               # file | table
+  sourceFileFormat: parquet      # parquet | json | csv | delta
+  
+  # ============================================================
+  # METADATA
+  # ============================================================
+  source_format: parquet
+  volume: XXS
+  
+  # ============================================================
+  # GOVERNANCE
+  # ============================================================
+  governance:
+    classification: Public
+    containsPersonalData: false
+    specialCategoryData: false
+    vulnerable_customer_data: false
+    uk_gdpr_lawful_basis: "Legal Obligation"
+    requires_dpo_review: false
+    access_review_frequency: monthly
+    retention_period_days: 3650
+    retention_rationale: "UK GDPR Data"
+    prescribed_responsibility: "PR X - Placeholder"
+    dataResidency: "UK"
+  
+  # ============================================================
+  # ACCESS CONTROL
+  # ============================================================
+  accessControl:
+    read:
+      - "<group>"
+    readSensitive:
+      - "<sensitive-group>"
+    write:
+      - "<producer-group>"
