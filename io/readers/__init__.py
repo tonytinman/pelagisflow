@@ -10,8 +10,8 @@ Available Readers:
 
 Usage:
     from nova_framework.io.readers import FileReader, TableReader
-    from nova_framework.observability.context import PipelineContext
-    from nova_framework.observability.pipeline_stats import PipelineStats
+    from nova_framework.core.context import ExecutionContext
+    from nova_framework.observability.stats import PipelineStats
     
     # File reader
     reader = FileReader(context, stats)

@@ -1,6 +1,6 @@
 from typing import Optional
-from nova_framework.observability.context import PipelineContext
-from nova_framework.observability.pipeline_stats import PipelineStats
+from nova_framework.core.context import ExecutionContext
+from nova_framework.observability.stats import PipelineStats
 from nova_framework.io.readers.base import AbstractReader
 from nova_framework.io.readers.file_reader import FileReader
 from nova_framework.io.readers.table_reader import TableReader
@@ -20,7 +20,7 @@ class IOFactory:
     @staticmethod
     def create_reader(
         reader_type: str,
-        context: PipelineContext,
+        context: ExecutionContext,
         pipeline_stats: PipelineStats
     ) -> AbstractReader:
         """
@@ -55,7 +55,7 @@ class IOFactory:
     @staticmethod
     def create_writer(
         writer_type: str,
-        context: PipelineContext,
+        context: ExecutionContext,
         pipeline_stats: PipelineStats
     ) -> AbstractWriter:
         """

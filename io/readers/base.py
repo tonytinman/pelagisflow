@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame
 from typing import Dict, Any, Tuple
-from nova_framework.observability.context import PipelineContext
-from nova_framework.observability.pipeline_stats import PipelineStats
+from nova_framework.core.context import ExecutionContext
+from nova_framework.observability.stats import PipelineStats
 
 
 class AbstractReader(ABC):
@@ -13,7 +13,7 @@ class AbstractReader(ABC):
     Provides common functionality for schema validation, metrics, etc.
     """
     
-    def __init__(self, context: PipelineContext, pipeline_stats: PipelineStats):
+    def __init__(self, context: ExecutionContext, pipeline_stats: PipelineStats):
         """
         Initialize reader with context.
         

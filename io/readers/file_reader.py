@@ -5,8 +5,8 @@ from datetime import datetime
 import logging
 
 from nova_framework.io.readers.base import AbstractReader
-from nova_framework.observability.context import PipelineContext
-from nova_framework.observability.pipeline_stats import PipelineStats
+from nova_framework.core.context import ExecutionContext
+from nova_framework.observability.stats import PipelineStats
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class FileReader(AbstractReader):
     
     SUPPORTED_FORMATS = ["parquet", "csv", "json", "delta", "avro", "orc"]
     
-    def __init__(self, context: PipelineContext, pipeline_stats: PipelineStats):
+    def __init__(self, context: ExecutionContext, pipeline_stats: PipelineStats):
         super().__init__(context, pipeline_stats)
         self.spark = SparkSession.getActiveSession()
         
