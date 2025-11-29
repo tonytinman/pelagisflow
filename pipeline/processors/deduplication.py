@@ -32,6 +32,6 @@ class DeduplicationProcessor:
         dedup_count = original_count - df_deduped.count()
         
         if stats:
-            stats.log_rows_deduped(dedup_count)
+            stats.log_stat("deduped", dedup_count) 
         
         return df_deduped
