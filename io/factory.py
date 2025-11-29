@@ -92,7 +92,7 @@ class IOFactory:
     
     @staticmethod
     def create_writer_from_contract(
-        context: PipelineContext,
+        context: ExecutionContext,
         pipeline_stats: PipelineStats
     ) -> AbstractWriter:
         """
