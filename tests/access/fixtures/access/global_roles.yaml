@@ -1,0 +1,12 @@
+roles:
+  consumer:
+    privileges: [SELECT]
+    description: "Standard read-only access for data consumers"
+
+  writer:
+    privileges: [SELECT, MODIFY]
+    description: "Read and write access for data producers"
+
+  admin:
+    privileges: [ALL PRIVILEGES]
+    description: "Full administrative access to domain tables"
