@@ -1,0 +1,130 @@
+---
+apiVersion: v3.0.2
+kind: DataContract
+name: customer_analytics_rfm
+version: "1.0.0"
+
+domain: sales
+dataProduct: customer_analytics
+team:
+  dataOwner: sales-analytics-team@example.com
+  seniorManager: vp-analytics@example.com
+  dataSteward: data-steward@example.com
+
+schema:
+  name: gold_sales.customer_analytics_rfm
+  table: customer_analytics_rfm
+  format: delta
+  description: Customer analytics with RFM scoring and segmentation
+  properties:
+    - name: customer_id
+      type: bigint
+      description: Unique customer identifier
+      isPrimaryKey: true
+      isNullable: false
+
+    - name: customer_name
+      type: string
+      description: Customer full name
+      isNullable: false
+
+    - name: customer_email
+      type: string
+      description: Customer email address
+      isNullable: true
+
+    - name: customer_segment
+      type: string
+      description: Customer segment (VIP, High Value, Medium Value, Low Value)
+      isNullable: false
+
+    - name: total_orders
+      type: bigint
+      description: Total number of orders
+      isNullable: false
+
+    - name: total_revenue
+      type: decimal(18,2)
+      description: Total customer revenue
+      isNullable: false
+
+    - name: avg_order_value
+      type: decimal(18,2)
+      description: Average order value
+      isNullable: false
+
+    - name: first_order_date
+      type: date
+      description: Date of first order
+      isNullable: true
+
+    - name: last_order_date
+      type: date
+      description: Date of most recent order
+      isNullable: true
+
+    - name: customer_lifetime_days
+      type: integer
+      description: Days between first and last order
+      isNullable: false
+
+    - name: recency_days
+      type: integer
+      description: Days since last order
+      isNullable: false
+
+    - name: recency_quartile
+      type: integer
+      description: RFM recency quartile (1-4)
+      isNullable: false
+
+    - name: frequency_quartile
+      type: integer
+      description: RFM frequency quartile (1-4)
+      isNullable: false
+
+    - name: monetary_quartile
+      type: integer
+      description: RFM monetary quartile (1-4)
+      isNullable: false
+
+    - name: rfm_score
+      type: integer
+      description: Composite RFM score
+      isNullable: false
+
+customProperties:
+  pipelineType: transformation
+  writeStrategy: overwrite
+  softDelete: false
+
+  # Python transformation (direct)
+  transformationType: python
+  transformationModule: customer_aggregation
+  transformationFunction: transform
+
+  # Configuration for the transformation
+  transformationConfig:
+    source_catalog: bronze_sales
+    min_order_threshold: 50.0
+
+quality:
+  validation:
+    - column: customer_id
+      rule: unique
+      severity: error
+
+    - column: customer_segment
+      rule: allowed_values
+      values:
+        - VIP
+        - High Value
+        - Medium Value
+        - Low Value
+      severity: error
+
+    - column: rfm_score
+      rule: between
+      min: 0
+      max: 444
+      severity: warning

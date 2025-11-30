@@ -1,0 +1,109 @@
+---
+apiVersion: v3.0.2
+kind: DataContract
+name: product_analytics_dashboard
+version: "1.0.0"
+
+domain: sales
+dataProduct: product_analytics
+team:
+  dataOwner: product-analytics-team@example.com
+  seniorManager: vp-product@example.com
+  dataSteward: data-steward@example.com
+
+schema:
+  name: gold_sales.product_analytics_dashboard
+  table: product_analytics_dashboard
+  format: delta
+  description: Comprehensive product analytics with trending and profitability
+  properties:
+    - name: product_id
+      type: bigint
+      description: Unique product identifier
+      isPrimaryKey: true
+      isNullable: false
+
+    - name: product_name
+      type: string
+      description: Product name
+      isNullable: false
+
+    - name: category
+      type: string
+      description: Product category
+      isNullable: true
+
+    - name: brand
+      type: string
+      description: Product brand
+      isNullable: true
+
+    - name: supplier
+      type: string
+      description: Product supplier
+      isNullable: true
+
+    - name: total_orders
+      type: bigint
+      description: Total number of orders
+      isNullable: false
+
+    - name: total_quantity_sold
+      type: bigint
+      description: Total quantity sold
+      isNullable: false
+
+    - name: total_revenue
+      type: decimal(18,2)
+      description: Total revenue
+      isNullable: false
+
+    - name: avg_unit_price
+      type: decimal(18,2)
+      description: Average unit price
+      isNullable: false
+
+    - name: unique_customers
+      type: bigint
+      description: Number of unique customers
+      isNullable: false
+
+    - name: is_trending
+      type: boolean
+      description: Whether product is currently trending
+      isNullable: false
+
+    - name: sales_velocity
+      type: double
+      description: Sales velocity metric
+      isNullable: false
+
+customProperties:
+  pipelineType: transformation
+  writeStrategy: overwrite
+  softDelete: false
+
+  # Registry-based transformation
+  transformationName: product_analytics_v1
+
+  # Optional: Override default configuration
+  transformationConfig:
+    source_catalog: bronze_sales
+    include_profitability: false
+    velocity_window_days: 30
+    velocity_threshold: 0.25
+
+quality:
+  validation:
+    - column: product_id
+      rule: unique
+      severity: error
+
+    - column: total_revenue
+      rule: min
+      value: 0
+      severity: error
+
+    - column: is_trending
+      rule: not_null
+      severity: error
