@@ -72,15 +72,20 @@ class TestAccessMetadataLoader:
         # Check all intents are for correct table
         for intent in intents:
             assert intent.table == "test_catalog.galahad.quolive_manager_industry_type"
-            assert intent.privilege == UCPrivilege.SELECT
 
-        # Check groups
+        # Check groups (including writer group)
         groups = {intent.ad_group for intent in intents}
         assert groups == {
             "ad_grp_galahad_analysts_dev",
             "ad_grp_bi_users_dev",
-            "ad_grp_galahad_sensitive_dev"
+            "ad_grp_galahad_sensitive_dev",
+            "ad_grp_galahad_etl_dev"  # writer group
         }
+
+        # Check privileges
+        privileges = {intent.privilege for intent in intents}
+        assert UCPrivilege.SELECT in privileges
+        assert UCPrivilege.MODIFY in privileges  # From writer role
 
     def test_get_intended_privileges_excluded_table(self, loader):
         """Test getting privileges for table excluded by consumer.general."""
