@@ -34,12 +34,8 @@ from .models import (
 from .metadata_loader import AccessMetadataLoader
 from .uc_inspector import UCPrivilegeInspector
 from .delta_generator import PrivilegeDeltaGenerator
-
-# Note: GrantRevoker and StandaloneAccessControlTool imports temporarily disabled
-# grant_revoker.py currently has wrong content (duplicate of delta_generator)
-# Uncomment when GrantRevoker is properly implemented:
-# from .grant_revoker import GrantRevoker
-# from .standalone import StandaloneAccessControlTool
+from .grant_revoker import GrantRevoker
+from .standalone import StandaloneAccessControlTool
 
 __version__ = "1.0.0"
 
@@ -57,8 +53,8 @@ __all__ = [
     'AccessMetadataLoader',
     'UCPrivilegeInspector',
     'PrivilegeDeltaGenerator',
+    'GrantRevoker',
 
-    # Temporarily disabled until GrantRevoker is properly implemented:
-    # 'GrantRevoker',
-    # 'StandaloneAccessControlTool',
+    # Tools
+    'StandaloneAccessControlTool',
 ]
