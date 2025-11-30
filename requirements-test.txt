@@ -1,0 +1,18 @@
+# Test dependencies for pelagisflow
+
+# Testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
+
+# YAML parsing (for fixtures)
+pyyaml>=6.0
+
+# Mocking
+mock>=5.1.0
+
+# Code quality
+flake8>=6.1.0
+black>=23.7.0
+isort>=5.12.0
+mypy>=1.5.0

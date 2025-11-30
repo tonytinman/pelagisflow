@@ -1,0 +1,30 @@
+domain: galahad
+
+roles:
+  consumer:
+    inherits: consumer
+    scope:
+      include: ["*"]
+    description: "General galahad data consumers"
+
+  consumer.sensitive:
+    inherits: consumer
+    locally_scoped: true
+    scope:
+      include:
+        - quolive_manager_industry_type
+    description: "Access to sensitive tables only"
+
+  consumer.general:
+    inherits: consumer
+    locally_scoped: true
+    scope:
+      exclude:
+        - quolive_manager_industry_type
+    description: "General access excluding sensitive tables"
+
+  writer:
+    inherits: writer
+    scope:
+      include: ["*"]
+    description: "Galahad data writers"

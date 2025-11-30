@@ -34,27 +34,31 @@ from .models import (
 from .metadata_loader import AccessMetadataLoader
 from .uc_inspector import UCPrivilegeInspector
 from .delta_generator import PrivilegeDeltaGenerator
-from .grant_revoker import GrantRevoker
-from .standalone import StandaloneAccessControlTool
+
+# Note: GrantRevoker and StandaloneAccessControlTool imports temporarily disabled
+# grant_revoker.py currently has wrong content (duplicate of delta_generator)
+# Uncomment when GrantRevoker is properly implemented:
+# from .grant_revoker import GrantRevoker
+# from .standalone import StandaloneAccessControlTool
 
 __version__ = "1.0.0"
 
 __all__ = [
     # Enums
     'UCPrivilege',
-    
+
     # Data models
     'PrivilegeIntent',
     'ActualPrivilege',
     'PrivilegeDelta',
     'AccessControlResult',
-    
+
     # Core components
     'AccessMetadataLoader',
     'UCPrivilegeInspector',
     'PrivilegeDeltaGenerator',
-    'GrantRevoker',
-    
-    # Tools
-    'StandaloneAccessControlTool',
+
+    # Temporarily disabled until GrantRevoker is properly implemented:
+    # 'GrantRevoker',
+    # 'StandaloneAccessControlTool',
 ]

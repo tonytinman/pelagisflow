@@ -1,0 +1,19 @@
+domain: galahad
+
+mappings:
+  consumer:
+    ad_groups:
+      - ad_grp_galahad_analysts_dev
+      - ad_grp_bi_users_dev
+
+  consumer.sensitive:
+    ad_groups:
+      - ad_grp_galahad_sensitive_dev
+
+  consumer.general:
+    ad_groups:
+      - ad_grp_galahad_general_dev
+
+  writer:
+    ad_groups:
+      - ad_grp_galahad_etl_dev
