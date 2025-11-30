@@ -59,8 +59,13 @@ class PrivilegeIntent:
         return hash((self.table, self.ad_group, self.privilege))
     
     def __eq__(self, other):
-        """Enable equality comparison."""
-        if not isinstance(other, PrivilegeIntent):
+        """
+        Enable equality comparison.
+
+        Can compare with ActualPrivilege - only compares key fields
+        (table, ad_group, privilege), ignoring reason field.
+        """
+        if not isinstance(other, (PrivilegeIntent, ActualPrivilege)):
             return False
         return (
             self.table == other.table and
@@ -103,8 +108,13 @@ class ActualPrivilege:
         return hash((self.table, self.ad_group, self.privilege))
     
     def __eq__(self, other):
-        """Enable equality comparison."""
-        if not isinstance(other, ActualPrivilege):
+        """
+        Enable equality comparison.
+
+        Can compare with PrivilegeIntent - only compares key fields
+        (table, ad_group, privilege).
+        """
+        if not isinstance(other, (PrivilegeIntent, ActualPrivilege)):
             return False
         return (
             self.table == other.table and

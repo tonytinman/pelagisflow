@@ -64,9 +64,10 @@ class TestAccessMetadataLoader:
         # Should have privileges for:
         # - consumer role (2 groups: ad_grp_galahad_analysts_dev, ad_grp_bi_users_dev)
         # - consumer.sensitive role (1 group: ad_grp_galahad_sensitive_dev)
-        # Total: 3 intents, all with SELECT privilege
+        # - writer role (1 group with 2 privileges: ad_grp_galahad_etl_dev)
+        # Total: 5 intents (3 SELECT + 1 SELECT + 1 MODIFY)
 
-        assert len(intents) == 3
+        assert len(intents) == 5
 
         # Check all intents are for correct table
         for intent in intents:
@@ -91,18 +92,19 @@ class TestAccessMetadataLoader:
 
         # Should have privileges for:
         # - consumer role (all tables) - 2 groups
-        # - consumer.general role (excludes quolive_manager_industry_type) - 1 group
+        # - consumer.general role (excludes quolive_manager_industry_type, includes other_table) - 1 group
         # - writer role (all tables) - 1 group with 2 privileges (SELECT, MODIFY)
-        # Total: 6 intents (4 SELECT, 2 from writer)
+        # - consumer.sensitive does NOT apply (only includes quolive_manager_industry_type)
+        # Total: 5 intents (3 SELECT from consumers + 1 SELECT + 1 MODIFY from writer)
 
-        assert len(intents) == 6
+        assert len(intents) == 5
 
         # Count by privilege
         select_count = sum(1 for i in intents if i.privilege == UCPrivilege.SELECT)
         modify_count = sum(1 for i in intents if i.privilege == UCPrivilege.MODIFY)
 
         assert select_count == 4  # consumer(2) + consumer.general(1) + writer(1)
-        assert modify_count == 2  # writer(1) * 2 privileges
+        assert modify_count == 1  # writer(1)
 
     def test_get_intended_privileges_writer_role(self, loader):
         """Test that writer role gets both SELECT and MODIFY."""
