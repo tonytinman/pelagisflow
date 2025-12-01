@@ -5,9 +5,11 @@ Provides clean, consistent statistics tracking during pipeline execution.
 All legacy code removed - clean implementation.
 """
 
+import json
 from datetime import datetime
 from typing import Dict, Any, Optional
-from pyspark.sql import SparkSession, Row
+from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, TimestampType, IntegerType, FloatType, StringType
 from nova_framework.observability.logging import get_logger
 
 logger = get_logger("observability.stats")
@@ -200,22 +202,38 @@ class PipelineStats:
 
         logger.info(f"Persisting pipeline stats to {table_name}")
 
-        # Create stats row
-        stats_row = Row(
-            process_queue_id=self.process_queue_id,
-            execution_start=self.start_time,
-            execution_end=self.end_time,
-            execution_time_seconds=self.execution_time_seconds,
-            rows_read=self.rows_read,
-            rows_written=self.rows_written,
-            rows_invalid=self.rows_invalid,
-            custom_stats=self.custom_stats,
-            timestamp=datetime.now()
-        )
+        # Define explicit schema to avoid type inference issues
+        schema = StructType([
+            StructField("process_queue_id", IntegerType(), False),
+            StructField("execution_start", TimestampType(), False),
+            StructField("execution_end", TimestampType(), True),
+            StructField("execution_time_seconds", FloatType(), False),
+            StructField("rows_read", IntegerType(), False),
+            StructField("rows_written", IntegerType(), False),
+            StructField("rows_invalid", IntegerType(), False),
+            StructField("custom_stats", StringType(), True),
+            StructField("timestamp", TimestampType(), False)
+        ])
+
+        # Convert custom_stats dict to JSON string
+        custom_stats_json = json.dumps(self.custom_stats) if self.custom_stats else None
+
+        # Create data tuple with explicit schema
+        data = [(
+            self.process_queue_id,
+            self.start_time,
+            self.end_time,
+            self.execution_time_seconds,
+            self.rows_read,
+            self.rows_written,
+            self.rows_invalid,
+            custom_stats_json,
+            datetime.now()
+        )]
 
         # Write to Delta table
-        df = spark.createDataFrame([stats_row])
-        df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table_name)
+        df = spark.createDataFrame(data, schema)
+        df.write.format("delta").mode("append").saveAsTable(table_name)
 
         logger.info(f"Successfully persisted stats to {table_name}")
     
