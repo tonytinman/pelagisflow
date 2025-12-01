@@ -10,7 +10,7 @@ Main Components:
 - factory: IOFactory for creating appropriate reader/writer instances
 
 Usage:
-    from nova_framework.io.factory import IOFactory
+    from pelagisflow.io.factory import IOFactory
     
     # Create reader
     reader = IOFactory.create_reader("file", context, stats)
@@ -26,20 +26,20 @@ Usage:
 """
 
 # Main factory
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 # Reader base and implementations
-from nova_framework.io.readers.base import AbstractReader
-from nova_framework.io.readers.file_reader import FileReader
-from nova_framework.io.readers.table_reader import TableReader
+from pelagisflow.io.readers.base import AbstractReader
+from pelagisflow.io.readers.file_reader import FileReader
+from pelagisflow.io.readers.table_reader import TableReader
 
 # Writer base and implementations
-from nova_framework.io.writers.base import AbstractWriter
-from nova_framework.io.writers.overwrite import OverwriteWriter
-from nova_framework.io.writers.append import AppendWriter
-from nova_framework.io.writers.scd2 import SCD2Writer
-from nova_framework.io.writers.scd4 import SCD4Writer
-from nova_framework.io.writers.file_export import FileExportWriter
+from pelagisflow.io.writers.base import AbstractWriter
+from pelagisflow.io.writers.overwrite import OverwriteWriter
+from pelagisflow.io.writers.append import AppendWriter
+from pelagisflow.io.writers.scd2 import SCD2Writer
+from pelagisflow.io.writers.scd4 import SCD4Writer
+from pelagisflow.io.writers.file_export import FileExportWriter
 
 
 __all__ = [

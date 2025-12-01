@@ -7,8 +7,8 @@ rules (check data quality) based on contract configuration.
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from nova_framework.pipeline.stages.base import AbstractStage
-from nova_framework.quality.dq import DQEngine
+from pelagisflow.pipeline.stages.base import AbstractStage
+from pelagisflow.quality.dq import DQEngine
 
 
 class QualityStage(AbstractStage):
@@ -123,7 +123,7 @@ class QualityStage(AbstractStage):
         Args:
             df_dq_errors: DataFrame containing DQ errors
         """
-        from nova_framework.core.config import get_config
+        from pelagisflow.core.config import get_config
         
         try:
             # Add contract name to errors

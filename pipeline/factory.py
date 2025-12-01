@@ -5,15 +5,15 @@ Provides a registry-based factory pattern for pipeline creation.
 """
 
 from typing import Dict, Type
-from nova_framework.pipeline.base import BasePipeline
-from nova_framework.pipeline.strategies import (
+from pelagisflow.pipeline.base import BasePipeline
+from pelagisflow.pipeline.strategies import (
     IngestionPipeline,
     TransformationPipeline,
     ValidationPipeline
 )
-from nova_framework.core.context import ExecutionContext
-from nova_framework.observability.stats import PipelineStats
-from nova_framework.observability.logging import get_logger
+from pelagisflow.core.context import ExecutionContext
+from pelagisflow.observability.stats import PipelineStats
+from pelagisflow.observability.logging import get_logger
 
 logger = get_logger("pipeline.factory")
 

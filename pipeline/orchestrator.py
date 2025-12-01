@@ -4,11 +4,11 @@ Pipeline orchestrator - main entry point for all pipeline executions.
 This is the top-level class that coordinates pipeline execution.
 """
 
-from nova_framework.pipeline.factory import PipelineFactory
-from nova_framework.core.context import ExecutionContext
-from nova_framework.observability.stats import PipelineStats
-from nova_framework.observability.telemetry import TelemetryEmitter
-from nova_framework.observability.logging import get_logger
+from pelagisflow.pipeline.factory import PipelineFactory
+from pelagisflow.core.context import ExecutionContext
+from pelagisflow.observability.stats import PipelineStats
+from pelagisflow.observability.telemetry import TelemetryEmitter
+from pelagisflow.observability.logging import get_logger
 
 logger = get_logger("pipeline.orchestrator")
 

@@ -6,8 +6,8 @@ contract configuration (writeStrategy).
 """
 
 from pyspark.sql import DataFrame
-from nova_framework.pipeline.stages.base import AbstractStage
-from nova_framework.io.factory import IOFactory
+from pelagisflow.pipeline.stages.base import AbstractStage
+from pelagisflow.io.factory import IOFactory
 
 
 class WriteStage(AbstractStage):

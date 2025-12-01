@@ -3,7 +3,7 @@ from pyspark.sql import functions as F
 from typing import Dict, Any, Optional
 import logging
 
-from nova_framework.io.writers.base import AbstractWriter
+from pelagisflow.io.writers.base import AbstractWriter
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class SCD4Writer(AbstractWriter):
         logger.info(f"SCD4 write to current={current_table}, history={historical_table}")
         
         # Write to historical table using SCD2
-        from nova_framework.io.writers.scd2 import SCD2Writer
+        from pelagisflow.io.writers.scd2 import SCD2Writer
         
         scd2_writer = SCD2Writer(self.context, self.pipeline_stats)
         scd2_stats = scd2_writer.write(

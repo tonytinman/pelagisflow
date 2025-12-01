@@ -7,12 +7,12 @@ module into the pipeline execution flow.
 
 from typing import Optional
 from pyspark.sql import DataFrame
-from nova_framework.pipeline.stages.base import AbstractStage
-from nova_framework.core.context import ExecutionContext
-from nova_framework.observability.stats import PipelineStats
+from pelagisflow.pipeline.stages.base import AbstractStage
+from pelagisflow.core.context import ExecutionContext
+from pelagisflow.observability.stats import PipelineStats
 
 # Import from access module (domain logic)
-from nova_framework.access import (
+from pelagisflow.access import (
     AccessMetadataLoader,
     UCPrivilegeInspector,
     PrivilegeDeltaGenerator,

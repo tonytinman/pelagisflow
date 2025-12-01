@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame, SparkSession
 from typing import Dict, Any, Optional
-from nova_framework.core.context import ExecutionContext
-from nova_framework.observability.stats import PipelineStats
+from pelagisflow.core.context import ExecutionContext
+from pelagisflow.observability.stats import PipelineStats
 
 
 class AbstractWriter(ABC):

@@ -145,7 +145,7 @@ class PipelineStats:
             # Get catalog from environment
             # Try to get from config, fallback to default
             try:
-                from nova_framework.core.config import get_config
+                from pelagisflow.core.config import get_config
                 config = get_config()
                 catalog = config.get_catalog_name()
             except:

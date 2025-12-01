@@ -5,10 +5,10 @@ Reads data and applies quality rules without writing to target.
 """
 
 from typing import List
-from nova_framework.pipeline.base import BasePipeline
-from nova_framework.pipeline.stages.base import AbstractStage
-from nova_framework.pipeline.stages.read_stage import ReadStage
-from nova_framework.pipeline.stages.quality_stage import QualityStage
+from pelagisflow.pipeline.base import BasePipeline
+from pelagisflow.pipeline.stages.base import AbstractStage
+from pelagisflow.pipeline.stages.read_stage import ReadStage
+from pelagisflow.pipeline.stages.quality_stage import QualityStage
 
 
 class ValidationPipeline(BasePipeline):

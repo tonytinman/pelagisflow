@@ -5,14 +5,14 @@ Reads data from source files, applies transformations, and writes to bronze tabl
 """
 
 from typing import List
-from nova_framework.pipeline.base import BasePipeline
-from nova_framework.pipeline.stages.base import AbstractStage
-from nova_framework.pipeline.stages.read_stage import ReadStage
-from nova_framework.pipeline.stages.lineage_stage import LineageStage
-from nova_framework.pipeline.stages.hashing_stage import HashingStage
-from nova_framework.pipeline.stages.deduplication_stage import DeduplicationStage
-from nova_framework.pipeline.stages.quality_stage import QualityStage
-from nova_framework.pipeline.stages.write_stage import WriteStage
+from pelagisflow.pipeline.base import BasePipeline
+from pelagisflow.pipeline.stages.base import AbstractStage
+from pelagisflow.pipeline.stages.read_stage import ReadStage
+from pelagisflow.pipeline.stages.lineage_stage import LineageStage
+from pelagisflow.pipeline.stages.hashing_stage import HashingStage
+from pelagisflow.pipeline.stages.deduplication_stage import DeduplicationStage
+from pelagisflow.pipeline.stages.quality_stage import QualityStage
+from pelagisflow.pipeline.stages.write_stage import WriteStage
 
 
 class IngestionPipeline(BasePipeline):

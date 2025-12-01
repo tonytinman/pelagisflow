@@ -10,7 +10,7 @@ Provides data cleansing and validation capabilities for pipeline processing.
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql import Window
-from nova_framework.observability import get_logger
+from pelagisflow.observability import get_logger
 
 logger = get_logger("quality.dqengine")
 

@@ -14,10 +14,10 @@ Key Components:
 
 Usage:
     # In pipeline (automatic)
-    from nova_framework.access.stage import AccessControlStage
+    from pelagisflow.access.stage import AccessControlStage
     
     # Standalone (on-demand)
-    from nova_framework.access import StandaloneAccessControlTool
+    from pelagisflow.access import StandaloneAccessControlTool
     
     tool = StandaloneAccessControlTool(spark, environment="dev")
     tool.apply_to_table(catalog, schema, table)

@@ -7,8 +7,8 @@ Provides lightweight telemetry for tracking pipeline execution flow.
 from datetime import datetime
 from typing import Optional
 from pyspark.sql import SparkSession, Row
-from nova_framework.core.config import get_config
-from nova_framework.observability.logging import get_logger
+from pelagisflow.core.config import get_config
+from pelagisflow.observability.logging import get_logger
 
 logger = get_logger("telemetry")
 

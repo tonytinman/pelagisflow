@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
 from pyspark.sql import SparkSession, Row
-from nova_framework.core.config import get_config
+from pelagisflow.core.config import get_config
 
 
 class DeltaLogHandler(logging.Handler):

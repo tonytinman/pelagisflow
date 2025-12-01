@@ -4,7 +4,7 @@ Nova Framework Core Module
 Provides configuration management, execution context, and core domain models.
 """
 
-from nova_framework.core.config import (
+from pelagisflow.core.config import (
     FrameworkConfig,
     CatalogConfig,
     StorageConfig,
@@ -14,9 +14,9 @@ from nova_framework.core.config import (
     reset_config
 )
 
-from nova_framework.core.context import ExecutionContext, PipelineContext
+from pelagisflow.core.context import ExecutionContext, PipelineContext
 
-from nova_framework.core.models import ExecutionStatus, ExecutionResult
+from pelagisflow.core.models import ExecutionStatus, ExecutionResult
 
 __all__ = [
     # Configuration

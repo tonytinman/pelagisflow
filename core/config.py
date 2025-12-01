@@ -73,6 +73,9 @@ class ObservabilityConfig:
     # Statistics
     stats_table: str = "nova_framework.pipeline_stats"
 
+    # Data Quality
+    dq_errors_table: str = "nova_framework.dq_errors"
+
 
 @dataclass
 class FrameworkConfig:
@@ -126,3 +129,9 @@ def set_config(config: FrameworkConfig):
     """Set global configuration instance."""
     global _config
     _config = config
+
+
+def reset_config():
+    """Reset global configuration to None."""
+    global _config
+    _config = None
