@@ -69,12 +69,12 @@ For more details, see:
 - SCD4: Current table + Historical table pattern (fast queries + history)
 """
 
-from nova_framework.io.writers.base import AbstractWriter
-from nova_framework.io.writers.overwrite import OverwriteWriter
-from nova_framework.io.writers.append import AppendWriter
-from nova_framework.io.writers.scd2 import SCD2Writer
-from nova_framework.io.writers.scd4 import SCD4Writer
-from nova_framework.io.writers.file_export import FileExportWriter
+from pelagisflow.io.writers.base import AbstractWriter
+from pelagisflow.io.writers.overwrite import OverwriteWriter
+from pelagisflow.io.writers.append import AppendWriter
+from pelagisflow.io.writers.scd2 import SCD2Writer
+from pelagisflow.io.writers.scd4 import SCD4Writer
+from pelagisflow.io.writers.file_export import FileExportWriter
 
 __all__ = [
     "AbstractWriter",

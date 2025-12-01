@@ -14,20 +14,20 @@ Usage:
 import os
 import sys
 
-# Add the parent directory to the system path for importing nova_framework
+# Add the parent directory to the system path for importing pelagisflow
 util_path = os.path.abspath(os.path.join(os.getcwd(), "../../"))
 sys.path.append(util_path)
 
-# Import Pipeline from nova_framework
+# Import Pipeline from pelagisflow
 # This will work with either import style:
-# - from nova_framework.pipeline.orchestrator import Pipeline (direct import)
-# - from nova_framework.pipeline import Pipeline (after __init__.py is in place)
+# - from pelagisflow.pipeline.orchestrator import Pipeline (direct import)
+# - from pelagisflow.pipeline import Pipeline (after __init__.py is in place)
 try:
     # Preferred: Clean module-level import (requires pipeline/__init__.py)
-    from nova_framework.pipeline import Pipeline
+    from pelagisflow.pipeline import Pipeline
 except ImportError:
     # Fallback: Direct import (works without __init__.py)
-    from nova_framework.pipeline.orchestrator import Pipeline
+    from pelagisflow.pipeline.orchestrator import Pipeline
 
 
 def main():

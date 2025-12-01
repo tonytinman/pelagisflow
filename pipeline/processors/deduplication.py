@@ -4,7 +4,7 @@ Deduplication processor.
 
 from pyspark.sql import DataFrame
 from typing import List, Optional
-from nova_framework.observability.stats import PipelineStats
+from pelagisflow.observability.stats import PipelineStats
 
 
 class DeduplicationProcessor:

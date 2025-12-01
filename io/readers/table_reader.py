@@ -1,7 +1,7 @@
 from pyspark.sql import DataFrame, SparkSession
 from typing import Dict, Any, Tuple, Optional
 
-from nova_framework.io.readers.base import AbstractReader
+from pelagisflow.io.readers.base import AbstractReader
 
 
 class TableReader(AbstractReader):

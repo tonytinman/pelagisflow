@@ -5,10 +5,10 @@
 Place the `__init__.py` files in their respective directories:
 
 ```bash
-# Copy files to your nova_framework/io/ directory
-cp io__init__.py nova_framework/io/__init__.py
-cp readers__init__.py nova_framework/io/readers/__init__.py
-cp writers__init__.py nova_framework/io/writers/__init__.py
+# Copy files to your pelagisflow/io/ directory
+cp io__init__.py pelagisflow/io/__init__.py
+cp readers__init__.py pelagisflow/io/readers/__init__.py
+cp writers__init__.py pelagisflow/io/writers/__init__.py
 ```
 
 ## Import Patterns
@@ -16,9 +16,9 @@ cp writers__init__.py nova_framework/io/writers/__init__.py
 ### Recommended: Use Factory
 
 ```python
-from nova_framework.io.factory import IOFactory
-from nova_framework.observability.context import PipelineContext
-from nova_framework.observability.pipeline_stats import PipelineStats
+from pelagisflow.io.factory import IOFactory
+from pelagisflow.observability.context import PipelineContext
+from pelagisflow.observability.pipeline_stats import PipelineStats
 
 # Create context
 context = PipelineContext(
@@ -42,8 +42,8 @@ write_stats = writer.write(df)
 
 ```python
 # Import specific classes
-from nova_framework.io.readers import FileReader, TableReader
-from nova_framework.io.writers import SCD2Writer, OverwriteWriter
+from pelagisflow.io.readers import FileReader, TableReader
+from pelagisflow.io.writers import SCD2Writer, OverwriteWriter
 
 # Use directly
 reader = FileReader(context, stats)
@@ -57,7 +57,7 @@ write_stats = writer.write(df, soft_delete=True)
 
 ```python
 # Import from main io module
-from nova_framework.io import IOFactory, FileReader, SCD2Writer
+from pelagisflow.io import IOFactory, FileReader, SCD2Writer
 
 reader = FileReader(context, stats)
 writer = SCD2Writer(context, stats)
@@ -68,7 +68,7 @@ writer = SCD2Writer(context, stats)
 ### FileReader
 
 ```python
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 reader = IOFactory.create_reader("file", context, stats)
 
@@ -95,7 +95,7 @@ print(f"Rejection rate: {report['rejection_rate_pct']:.2f}%")
 ### TableReader
 
 ```python
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 reader = IOFactory.create_reader("table", context, stats)
 
@@ -123,7 +123,7 @@ customProperties:
 
 ```python
 # In your pipeline code
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 # Factory reads writeStrategy from contract
 writer = IOFactory.create_writer_from_contract(context, stats)
@@ -138,7 +138,7 @@ print(f"Rows written: {write_stats['rows_written']}")
 #### OverwriteWriter
 
 ```python
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 writer = IOFactory.create_writer("overwrite", context, stats)
 
@@ -156,7 +156,7 @@ print(f"Optimized: {write_stats['optimized']}")
 #### AppendWriter
 
 ```python
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 writer = IOFactory.create_writer("append", context, stats)
 
@@ -176,7 +176,7 @@ if write_stats['deduplicated']:
 #### SCD2Writer
 
 ```python
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 writer = IOFactory.create_writer("scd2", context, stats)
 
@@ -199,7 +199,7 @@ print(f"Total inserted: {write_stats['records_inserted']}")
 #### SCD4Writer
 
 ```python
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 writer = IOFactory.create_writer("scd4", context, stats)
 
@@ -222,7 +222,7 @@ print(f"Historical stats: {write_stats['historical_stats']}")
 #### FileExportWriter
 
 ```python
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 writer = IOFactory.create_writer("file_export", context, stats)
 
@@ -246,9 +246,9 @@ print(f"Output: {write_stats['output_path']}")
 ### Ingestion Pipeline
 
 ```python
-from nova_framework.io.factory import IOFactory
-from nova_framework.observability.context import PipelineContext
-from nova_framework.observability.pipeline_stats import PipelineStats
+from pelagisflow.io.factory import IOFactory
+from pelagisflow.observability.context import PipelineContext
+from pelagisflow.observability.pipeline_stats import PipelineStats
 
 def run_ingestion_pipeline(
     process_queue_id: int,
@@ -456,7 +456,7 @@ customProperties:
 ```python
 import pytest
 from unittest.mock import Mock, patch
-from nova_framework.io.writers import SCD2Writer
+from pelagisflow.io.writers import SCD2Writer
 
 def test_scd2_writer_first_load(spark_session):
     """Test SCD2 first load creates table correctly."""
@@ -516,7 +516,7 @@ def test_full_pipeline_with_io_module(spark_session):
 
 ```python
 # OLD: Direct use of PipelineFunctions
-from nova_framework.pipeline.pipeline import PipelineFunctions
+from pelagisflow.pipeline.pipeline import PipelineFunctions
 
 merge_stats = PipelineFunctions.merge_scd2(
     df_with_quality,
@@ -529,7 +529,7 @@ merge_stats = PipelineFunctions.merge_scd2(
 
 ```python
 # NEW: Use IOFactory
-from nova_framework.io.factory import IOFactory
+from pelagisflow.io.factory import IOFactory
 
 writer = IOFactory.create_writer_from_contract(context, stats)
 write_stats = writer.write(df_with_quality)
@@ -539,20 +539,20 @@ write_stats = writer.write(df_with_quality)
 
 - [ ] Replace `PipelineFunctions.merge_scd2()` calls with `IOFactory.create_writer()`
 - [ ] Add `writeStrategy` to contracts that need non-SCD2 writes
-- [ ] Update imports from `nova_framework.pipeline` to `nova_framework.io`
+- [ ] Update imports from `pelagisflow.pipeline` to `pelagisflow.io`
 - [ ] Test each pipeline with new I/O module
 - [ ] Remove old `PipelineFunctions.merge_scd2()` method
 - [ ] Update documentation
 
 ## Troubleshooting
 
-### Import Error: No module named 'nova_framework.io.factory'
+### Import Error: No module named 'pelagisflow.io.factory'
 
 **Solution:** Ensure `__init__.py` files are in place:
 ```bash
-ls nova_framework/io/__init__.py
-ls nova_framework/io/readers/__init__.py
-ls nova_framework/io/writers/__init__.py
+ls pelagisflow/io/__init__.py
+ls pelagisflow/io/readers/__init__.py
+ls pelagisflow/io/writers/__init__.py
 ```
 
 ### ValueError: Unknown writer type

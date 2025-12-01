@@ -24,10 +24,10 @@ pipeline/stages/
 
 ```bash
 # Copy access module
-cp -r access/ /path/to/nova_framework/
+cp -r access/ /path/to/pelagisflow/
 
 # Copy pipeline stage
-cp pipeline/stages/access_control_stage.py /path/to/nova_framework/pipeline/stages/
+cp pipeline/stages/access_control_stage.py /path/to/pelagisflow/pipeline/stages/
 ```
 
 ### 2. Update Pipeline Strategy
@@ -35,7 +35,7 @@ cp pipeline/stages/access_control_stage.py /path/to/nova_framework/pipeline/stag
 ```python
 # In pipeline/strategies/ingestion.py
 
-from nova_framework.pipeline.stages.access_control_stage import AccessControlStage
+from pelagisflow.pipeline.stages.access_control_stage import AccessControlStage
 
 class IngestionPipeline(BasePipeline):
     def build_stages(self) -> List[AbstractStage]:
@@ -65,7 +65,7 @@ class IngestionPipeline(BasePipeline):
     
     def _get_environment(self) -> str:
         """Get environment from config."""
-        from nova_framework.core.config import get_config
+        from pelagisflow.core.config import get_config
         config = get_config()
         return config.environment
 ```
@@ -201,7 +201,7 @@ import os
 os.environ["NOVA_ENVIRONMENT"] = "dev"
 
 # Run pipeline - access control applied automatically
-from nova_framework.pipeline.factory import PipelineFactory
+from pelagisflow.pipeline.factory import PipelineFactory
 
 factory = PipelineFactory()
 pipeline = factory.create_pipeline_from_contract(
@@ -220,7 +220,7 @@ print(f"Revokes applied: {result.stats.get('access_revokes_succeeded')}")
 
 ```python
 from pyspark.sql import SparkSession
-from nova_framework.access import StandaloneAccessControlTool
+from pelagisflow.access import StandaloneAccessControlTool
 
 spark = SparkSession.builder.getOrCreate()
 
@@ -289,7 +289,7 @@ SELECT
   custom_stats['access_grants_succeeded'] AS grants,
   custom_stats['access_revokes_succeeded'] AS revokes,
   custom_stats['access_no_change_count'] AS unchanged
-FROM nova_framework.pipeline_stats
+FROM pelagisflow.pipeline_stats
 WHERE timestamp >= CURRENT_DATE - INTERVAL 7 DAYS
   AND custom_stats IS NOT NULL
 ORDER BY timestamp DESC;

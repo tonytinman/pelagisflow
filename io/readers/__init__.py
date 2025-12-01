@@ -9,9 +9,9 @@ Available Readers:
 - StreamReader: (Future) Read from streaming sources
 
 Usage:
-    from nova_framework.io.readers import FileReader, TableReader
-    from nova_framework.core.context import ExecutionContext
-    from nova_framework.observability.stats import PipelineStats
+    from pelagisflow.io.readers import FileReader, TableReader
+    from pelagisflow.core.context import ExecutionContext
+    from pelagisflow.observability.stats import PipelineStats
     
     # File reader
     reader = FileReader(context, stats)
@@ -28,13 +28,13 @@ Usage:
     )
     
     # Or use factory (recommended)
-    from nova_framework.io.factory import IOFactory
+    from pelagisflow.io.factory import IOFactory
     reader = IOFactory.create_reader("file", context, stats)
 """
 
-from nova_framework.io.readers.base import AbstractReader
-from nova_framework.io.readers.file_reader import FileReader
-from nova_framework.io.readers.table_reader import TableReader
+from pelagisflow.io.readers.base import AbstractReader
+from pelagisflow.io.readers.file_reader import FileReader
+from pelagisflow.io.readers.table_reader import TableReader
 
 __all__ = [
     "AbstractReader",

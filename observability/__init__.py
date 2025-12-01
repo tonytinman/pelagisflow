@@ -7,17 +7,17 @@ REFACTORED VERSION - Clean architecture without legacy dependencies.
 """
 
 # Primary statistics interface (use this for pipelines)
-from nova_framework.observability.stats import PipelineStats
+from pelagisflow.observability.stats import PipelineStats
 
 # Logging
-from nova_framework.observability.logging import get_logger, DeltaLogHandler, FrameworkLogger
+from pelagisflow.observability.logging import get_logger, DeltaLogHandler, FrameworkLogger
 
 # Telemetry
-from nova_framework.observability.telemetry import TelemetryEmitter
+from pelagisflow.observability.telemetry import TelemetryEmitter
 
 # Optional: Metrics collector (backward compatibility)
 try:
-    from nova_framework.observability.metrics import MetricsCollector
+    from pelagisflow.observability.metrics import MetricsCollector
 except ImportError:
     # MetricsCollector is optional
     MetricsCollector = None

@@ -12,7 +12,7 @@ Main Components:
 - processors: Data processing utilities (lineage, hashing, deduplication)
 
 Usage:
-    from nova_framework.pipeline import Pipeline
+    from pelagisflow.pipeline import Pipeline
     
     # Create and run pipeline
     pipeline = Pipeline()
@@ -27,23 +27,23 @@ Usage:
 """
 
 # Main entry point
-from nova_framework.pipeline.orchestrator import Pipeline
+from pelagisflow.pipeline.orchestrator import Pipeline
 
 # Factory
-from nova_framework.pipeline.factory import PipelineFactory
+from pelagisflow.pipeline.factory import PipelineFactory
 
 # Base class
-from nova_framework.pipeline.base import BasePipeline
+from pelagisflow.pipeline.base import BasePipeline
 
 # Concrete pipeline strategies
-from nova_framework.pipeline.strategies import (
+from pelagisflow.pipeline.strategies import (
     IngestionPipeline,
     TransformationPipeline,
     ValidationPipeline
 )
 
 # Stages (for custom pipelines)
-from nova_framework.pipeline.stages import (
+from pelagisflow.pipeline.stages import (
     AbstractStage,
     ReadStage,
     LineageStage,
@@ -55,7 +55,7 @@ from nova_framework.pipeline.stages import (
 )
 
 # Processors (for custom transformations)
-from nova_framework.pipeline.processors import (
+from pelagisflow.pipeline.processors import (
     LineageProcessor,
     HashingProcessor,
     DeduplicationProcessor

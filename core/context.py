@@ -8,8 +8,8 @@ execution metadata.
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Any
-from nova_framework.contract.contract import DataContract
-from nova_framework.core.config import FrameworkConfig, get_config
+from pelagisflow.contract.contract import DataContract
+from pelagisflow.core.config import FrameworkConfig, get_config
 
 
 @dataclass

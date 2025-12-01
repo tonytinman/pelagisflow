@@ -6,8 +6,8 @@ processing metadata for each row.
 """
 
 from pyspark.sql import DataFrame
-from nova_framework.pipeline.stages.base import AbstractStage
-from nova_framework.pipeline.processors.lineage import LineageProcessor
+from pelagisflow.pipeline.stages.base import AbstractStage
+from pelagisflow.pipeline.processors.lineage import LineageProcessor
 
 
 class LineageStage(AbstractStage):

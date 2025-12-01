@@ -2,7 +2,7 @@ from pyspark.sql import DataFrame
 from typing import Dict, Any, Optional
 import logging
 
-from nova_framework.io.writers.base import AbstractWriter
+from pelagisflow.io.writers.base import AbstractWriter
 
 logger = logging.getLogger(__name__)
 

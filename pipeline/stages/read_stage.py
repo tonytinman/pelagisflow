@@ -7,8 +7,8 @@ the reader type (file or table).
 
 from pyspark.sql import DataFrame
 from typing import Optional
-from nova_framework.pipeline.stages.base import AbstractStage
-from nova_framework.io.factory import IOFactory
+from pelagisflow.pipeline.stages.base import AbstractStage
+from pelagisflow.io.factory import IOFactory
 
 
 class ReadStage(AbstractStage):

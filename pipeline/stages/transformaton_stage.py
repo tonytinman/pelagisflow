@@ -7,7 +7,7 @@ Used in TransformationPipeline for silver/gold layer processing.
 
 from pyspark.sql import DataFrame, SparkSession
 from typing import Optional
-from nova_framework.pipeline.stages.base import AbstractStage
+from pelagisflow.pipeline.stages.base import AbstractStage
 
 
 class TransformationStage(AbstractStage):

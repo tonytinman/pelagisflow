@@ -12,12 +12,12 @@ This module is kept for backward compatibility only.
 
 # Backward compatibility imports
 try:
-    from nova_framework.utils.telemetry import Telemetry
+    from pelagisflow.utils.telemetry import Telemetry
 except ImportError:
     Telemetry = None
 
 try:
-    from nova_framework.utils.pipeline_metrics import PipelineMetrics
+    from pelagisflow.utils.pipeline_metrics import PipelineMetrics
 except ImportError:
     PipelineMetrics = None
 

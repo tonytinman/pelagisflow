@@ -9,9 +9,9 @@ from abc import ABC, abstractmethod
 from pyspark.sql import DataFrame
 from typing import Optional
 from datetime import datetime
-from nova_framework.core.context import ExecutionContext
-from nova_framework.observability.stats import PipelineStats
-from nova_framework.observability.logging import get_logger
+from pelagisflow.core.context import ExecutionContext
+from pelagisflow.observability.stats import PipelineStats
+from pelagisflow.observability.logging import get_logger
 
 logger = get_logger("pipeline.stages")
 

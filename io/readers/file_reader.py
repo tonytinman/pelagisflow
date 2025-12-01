@@ -5,9 +5,9 @@ from typing import Dict, Any, Tuple, Optional
 from datetime import datetime
 import logging
 
-from nova_framework.io.readers.base import AbstractReader
-from nova_framework.core.context import ExecutionContext
-from nova_framework.observability.stats import PipelineStats
+from pelagisflow.io.readers.base import AbstractReader
+from pelagisflow.core.context import ExecutionContext
+from pelagisflow.observability.stats import PipelineStats
 
 logger = logging.getLogger(__name__)
 

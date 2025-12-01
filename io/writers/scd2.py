@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
 
-from nova_framework.io.writers.base import AbstractWriter
+from pelagisflow.io.writers.base import AbstractWriter
 
 logger = logging.getLogger(__name__)
 
