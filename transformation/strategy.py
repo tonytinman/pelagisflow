@@ -217,13 +217,17 @@ class TransformationStrategy:
 
     def _load_python_module(self) -> Callable:
         """
-        Dynamically load the Python transformation function.
+        Dynamically load the Python transformation (function or class).
+
+        Supports both:
+        1. Function-based: def transform(spark, input_df=None, **kwargs) -> DataFrame
+        2. Class-based: class MyTransform(AbstractTransformation) with run() method
 
         Returns:
-            The transformation function
+            Callable that executes the transformation
 
         Raises:
-            ValueError: If module or function cannot be loaded
+            ValueError: If module or function/class cannot be loaded
         """
         try:
             # Resolve module path
@@ -248,28 +252,71 @@ class TransformationStrategy:
             sys.modules[spec.name] = module
             spec.loader.exec_module(module)
 
-            # Get transformation function
+            # Get transformation function or class
             if not hasattr(module, self.function_name):
                 raise ValueError(
-                    f"Module {self.module_path} does not have function '{self.function_name}'"
+                    f"Module {self.module_path} does not have '{self.function_name}'"
                 )
 
-            transform_func = getattr(module, self.function_name)
+            transform_obj = getattr(module, self.function_name)
 
-            # Validate function signature
-            sig = inspect.signature(transform_func)
-            params = list(sig.parameters.keys())
+            # Check if it's a class (class-based transformation)
+            if inspect.isclass(transform_obj):
+                return self._create_class_wrapper(transform_obj)
 
-            if len(params) < 1 or params[0] != 'spark':
-                raise ValueError(
-                    f"Transformation function must have 'spark' as first parameter. "
-                    f"Found: {params}"
-                )
-
-            return transform_func
+            # Otherwise, it's a function (function-based transformation)
+            else:
+                return self._validate_function(transform_obj)
 
         except Exception as e:
             raise ValueError(f"Failed to load Python transformation: {str(e)}") from e
+
+    def _create_class_wrapper(self, transform_class) -> Callable:
+        """
+        Create a wrapper function for class-based transformations.
+
+        Args:
+            transform_class: The transformation class
+
+        Returns:
+            Wrapper function that instantiates class and calls run()
+        """
+        # Validate class has run() method
+        if not hasattr(transform_class, 'run'):
+            raise ValueError(
+                f"Transformation class '{transform_class.__name__}' must have a 'run()' method"
+            )
+
+        # Create wrapper that instantiates and calls run()
+        def wrapper(spark: SparkSession, input_df: Optional[DataFrame] = None, **kwargs) -> DataFrame:
+            instance = transform_class(spark)
+            return instance.run(input_df, **kwargs)
+
+        return wrapper
+
+    def _validate_function(self, transform_func: Callable) -> Callable:
+        """
+        Validate function-based transformation signature.
+
+        Args:
+            transform_func: The transformation function
+
+        Returns:
+            The validated function
+
+        Raises:
+            ValueError: If function signature is invalid
+        """
+        sig = inspect.signature(transform_func)
+        params = list(sig.parameters.keys())
+
+        if len(params) < 1 or params[0] != 'spark':
+            raise ValueError(
+                f"Transformation function must have 'spark' as first parameter. "
+                f"Found: {params}"
+            )
+
+        return transform_func
 
     def _transform_scala(self, input_df: Optional[DataFrame] = None, **kwargs) -> DataFrame:
         """

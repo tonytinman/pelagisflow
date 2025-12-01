@@ -1,0 +1,94 @@
+---
+apiVersion: v3.0.2
+kind: DataContract
+name: daily_sales_summary
+version: "1.0.0"
+
+domain: sales
+dataProduct: sales_analytics
+
+team:
+  dataOwner: sales-analytics-team@example.com
+  seniorManager: vp-sales@example.com
+  dataSteward: data-steward@example.com
+
+schema:
+  name: gold_sales.daily_sales_summary
+  table: daily_sales_summary
+  format: delta
+  description: Daily sales summary by product category
+
+  properties:
+    - name: time_key
+      type: date
+      description: Date of sales
+      isPrimaryKey: true
+      isNullable: false
+
+    - name: product_category
+      type: string
+      description: Product category
+      isPrimaryKey: true
+      isNullable: false
+
+    - name: order_count
+      type: bigint
+      description: Number of orders
+      isNullable: false
+
+    - name: total_revenue
+      type: decimal(18,2)
+      description: Total revenue
+      isNullable: false
+
+    - name: avg_order_value
+      type: decimal(18,2)
+      description: Average order value
+      isNullable: false
+
+    - name: unique_customers
+      type: bigint
+      description: Number of unique customers
+      isNullable: false
+
+    - name: total_quantity
+      type: bigint
+      description: Total quantity sold
+      isNullable: false
+
+    - name: revenue_per_customer
+      type: decimal(18,2)
+      description: Average revenue per customer
+      isNullable: false
+
+customProperties:
+  pipelineType: transformation
+  writeStrategy: overwrite
+  softDelete: false
+
+  # Class-based transformation using reusable base class
+  transformationType: python
+  transformationModule: daily_sales_summary
+  transformationClass: DailySalesSummary
+
+  # Configuration passed to the base class
+  transformationConfig:
+    source_table: bronze_sales.orders
+    date_column: order_date
+    lookback_days: 90
+    time_granularity: daily
+    group_by_columns:
+      - time_key
+      - product_category
+
+quality:
+  validation:
+    - column: order_count
+      rule: min
+      value: 0
+      severity: error
+
+    - column: total_revenue
+      rule: min
+      value: 0
+      severity: error
