@@ -13,7 +13,7 @@ from pyspark.sql import DataFrame, SparkSession
 from typing import Optional
 from nova_framework.pipeline.stages.base import AbstractStage
 from transformation.loader import TransformationLoader
-from transformation.base import AbstractTransformationStrategy
+from transformation.strategy import TransformationStrategy
 
 
 class TransformationStage(AbstractStage):
@@ -116,7 +116,7 @@ class TransformationStage(AbstractStage):
             self.logger.error(f"Transformation metadata: {metadata}")
             raise
 
-    def _load_transformation_strategy(self) -> AbstractTransformationStrategy:
+    def _load_transformation_strategy(self) -> TransformationStrategy:
         """
         Load transformation strategy based on contract configuration.
 

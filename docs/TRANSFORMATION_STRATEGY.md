@@ -119,26 +119,36 @@ class MyTransformation {
 │  - Loads from registry or direct config         │
 └────────────────┬────────────────────────────────┘
                  │
-        ┌────────┴────────┬──────────────┐
-        ▼                 ▼              ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│ SQL Strategy │  │Python Strategy│  │Scala Strategy│
-│              │  │              │  │              │
-│ - Execute    │  │ - Dynamic    │  │ - JAR        │
-│   SQL query  │  │   load .py   │  │   loading    │
-│              │  │ - Import     │  │ - Py4J       │
-│              │  │   helpers    │  │   bridge     │
-└──────────────┘  └──────────────┘  └──────────────┘
+                 ▼
+┌─────────────────────────────────────────────────┐
+│      TransformationStrategy                     │
+│  (Unified class handling all types)             │
+│                                                  │
+│  ┌────────────────────────────────────────┐    │
+│  │ SQL Execution                          │    │
+│  │ - Execute SQL via Spark SQL engine     │    │
+│  └────────────────────────────────────────┘    │
+│                                                  │
+│  ┌────────────────────────────────────────┐    │
+│  │ Python Execution                       │    │
+│  │ - Dynamic module loading               │    │
+│  │ - Import helpers and classes           │    │
+│  └────────────────────────────────────────┘    │
+│                                                  │
+│  ┌────────────────────────────────────────┐    │
+│  │ Scala Execution                        │    │
+│  │ - JAR loading                          │    │
+│  │ - Py4J bridge to JVM                   │    │
+│  └────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────┘
 ```
 
 ### Key Components
 
-1. **AbstractTransformationStrategy**: Base interface for all strategies
-2. **SQLTransformationStrategy**: Executes SQL queries
-3. **PythonTransformationStrategy**: Dynamically loads Python modules
-4. **ScalaTransformationStrategy**: Loads precompiled Scala JARs
-5. **TransformationRegistry**: Manages transformation metadata
-6. **TransformationLoader**: Factory for creating strategies
+1. **TransformationStrategy**: Unified class that handles all transformation types
+2. **TransformationType**: Enum for SQL, PYTHON, and SCALA
+3. **TransformationRegistry**: Manages transformation metadata
+4. **TransformationLoader**: Factory for creating transformation strategies
 
 ## SQL Transformations
 
