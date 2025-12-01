@@ -84,7 +84,7 @@ class TelemetryEmitter:
             )]
 
             df = spark.createDataFrame(data, schema)
-            df.write.format("delta").mode("append").saveAsTable(table)
+            df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table)
 
         except Exception as e:
             logger.error(f"Failed to persist telemetry: {e}")
