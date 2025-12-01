@@ -233,7 +233,7 @@ class PipelineStats:
 
         # Write to Delta table
         df = spark.createDataFrame(data, schema)
-        df.write.format("delta").mode("append").saveAsTable(table_name)
+        df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table_name)
 
         logger.info(f"Successfully persisted stats to {table_name}")
     
