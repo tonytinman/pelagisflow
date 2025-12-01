@@ -241,18 +241,25 @@ class PipelineStats:
 
         # Create DataFrame
         df = spark.createDataFrame(data, schema)
+        logger.info(f"DataFrame created with {df.count()} rows")
+        logger.info("DataFrame contents:")
+        df.show(truncate=False)
 
         # Check if table exists and write accordingly
         table_exists = spark.catalog.tableExists(table_name)
+        logger.info(f"Table exists check: {table_exists}")
 
         if table_exists:
             # Table exists - append with schema merge
-            logger.debug(f"Table {table_name} exists - appending data")
+            logger.info(f"Table {table_name} exists - appending data")
             df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table_name)
+            logger.info(f"Append write completed")
         else:
             # Table doesn't exist - create it
             logger.info(f"Table {table_name} does not exist - creating it")
+            logger.info(f"Executing: df.write.format('delta').mode('overwrite').saveAsTable('{table_name}')")
             df.write.format("delta").mode("overwrite").saveAsTable(table_name)
+            logger.info(f"Table creation write completed")
 
         logger.info(f"Successfully persisted stats to {table_name}")
     
