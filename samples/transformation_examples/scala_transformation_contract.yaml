@@ -1,0 +1,82 @@
+---
+apiVersion: v3.0.2
+kind: DataContract
+name: complex_multi_table_join
+version: "1.0.0"
+
+domain: sales
+dataProduct: integrated_analytics
+team:
+  dataOwner: data-engineering-team@example.com
+  seniorManager: vp-engineering@example.com
+  dataSteward: data-steward@example.com
+
+schema:
+  name: gold_sales.integrated_customer_product_analytics
+  table: integrated_customer_product_analytics
+  format: delta
+  description: Complex multi-table join with performance optimization
+  properties:
+    - name: transaction_id
+      type: string
+      description: Unique transaction identifier
+      isPrimaryKey: true
+      isNullable: false
+
+    - name: customer_id
+      type: bigint
+      description: Customer identifier
+      isNullable: false
+
+    - name: product_id
+      type: bigint
+      description: Product identifier
+      isNullable: false
+
+    - name: order_id
+      type: bigint
+      description: Order identifier
+      isNullable: false
+
+    - name: transaction_date
+      type: timestamp
+      description: Transaction timestamp
+      isNullable: false
+
+    - name: amount
+      type: decimal(18,2)
+      description: Transaction amount
+      isNullable: false
+
+customProperties:
+  pipelineType: transformation
+  writeStrategy: overwrite
+  softDelete: false
+
+  # Scala transformation (direct)
+  # Note: Requires precompiled JAR
+  transformationType: scala
+  transformationClass: com.pelagisflow.transformations.ComplexJoin
+  transformationJar: transformations/scala/complex-join-1.0.jar
+
+  # Configuration for the Scala transformation
+  transformationConfig:
+    join_type: inner
+    partition_columns:
+      - customer_id
+      - product_id
+
+quality:
+  validation:
+    - column: transaction_id
+      rule: unique
+      severity: error
+
+    - column: amount
+      rule: min
+      value: 0
+      severity: error
+
+    - column: transaction_date
+      rule: not_null
+      severity: error
