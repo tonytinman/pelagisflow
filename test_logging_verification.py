@@ -5,31 +5,31 @@ Quick verification test for metrics and DQ logging fixes.
 import sys
 import os
 
-# Add parent directory to path so we can import pelagisflow
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parent_dir)
+# Add current directory to path so we can import nova_framework
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
 
 def test_imports():
     """Test that all critical imports work."""
     print("Testing imports...")
 
     try:
-        from pelagisflow.core.config import get_config, ObservabilityConfig
+        from nova_framework.core.config import get_config, ObservabilityConfig
         print("✓ Config imports successful")
 
-        from pelagisflow.observability.logging import get_logger, FrameworkLogger
+        from nova_framework.observability.logging import get_logger, FrameworkLogger
         print("✓ Logging imports successful")
 
-        from pelagisflow.observability.stats import PipelineStats
+        from nova_framework.observability.stats import PipelineStats
         print("✓ Stats imports successful")
 
-        from pelagisflow.observability.telemetry import TelemetryEmitter
+        from nova_framework.observability.telemetry import TelemetryEmitter
         print("✓ Telemetry imports successful")
 
-        from pelagisflow.quality.dq import DQEngine
+        from nova_framework.quality.dq import DQEngine
         print("✓ DQ Engine imports successful")
 
-        from pelagisflow.pipeline.stages.quality_stage import QualityStage
+        from nova_framework.pipeline.stages.quality_stage import QualityStage
         print("✓ Quality Stage imports successful")
 
         return True
@@ -45,7 +45,7 @@ def test_config_attributes():
     print("\nTesting config attributes...")
 
     try:
-        from pelagisflow.core.config import ObservabilityConfig
+        from nova_framework.core.config import ObservabilityConfig
 
         config = ObservabilityConfig()
 
@@ -84,7 +84,7 @@ def test_logger_initialization():
     print("\nTesting logger initialization...")
 
     try:
-        from pelagisflow.observability.logging import get_logger
+        from nova_framework.observability.logging import get_logger
 
         logger = get_logger("test_module")
         print(f"✓ Logger created: {logger}")
