@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 
-from transformations.python.base import AbstractTransformation
+from nova_framework.transformations.python.base import AbstractTransformation
 
 
 class AggregationTransformationBase(AbstractTransformation):

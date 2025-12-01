@@ -8,9 +8,9 @@ All transformations are registered, versioned, and dynamically loaded at runtime
 based on data contract specifications.
 """
 
-from transformation.strategy import TransformationStrategy, TransformationType
-from transformation.registry import TransformationRegistry, TransformationMetadata
-from transformation.loader import TransformationLoader
+from nova_framework.transformation.strategy import TransformationStrategy, TransformationType
+from nova_framework.transformation.registry import TransformationRegistry, TransformationMetadata
+from nova_framework.transformation.loader import TransformationLoader
 
 __all__ = [
     'TransformationStrategy',

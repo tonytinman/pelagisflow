@@ -11,7 +11,7 @@ Transformations can include:
 - Multiple files organized as a package
 """
 
-from transformations.python.base import AbstractTransformation
+from nova_framework.transformations.python.base import AbstractTransformation
 
 __all__ = [
     "AbstractTransformation",

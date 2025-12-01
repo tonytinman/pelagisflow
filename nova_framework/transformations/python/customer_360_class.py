@@ -13,7 +13,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-from transformations.python.base import AbstractTransformation
+from nova_framework.transformations.python.base import AbstractTransformation
 
 
 class Customer360Transformation(AbstractTransformation):

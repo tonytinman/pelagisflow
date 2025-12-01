@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from pyspark.sql import DataFrame, SparkSession
 
-from transformation.base import AbstractTransformationStrategy, TransformationType
+from nova_framework.transformation.base import AbstractTransformationStrategy, TransformationType
 
 
 class ScalaTransformationStrategy(AbstractTransformationStrategy):

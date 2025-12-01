@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 
-from transformation.base import TransformationType
+from nova_framework.transformation.base import TransformationType
 
 
 @dataclass

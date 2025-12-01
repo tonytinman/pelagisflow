@@ -7,8 +7,8 @@ Loads transformation strategies at runtime based on data contract specifications
 from typing import Optional, Dict, Any
 from pyspark.sql import SparkSession
 
-from transformation.strategy import TransformationStrategy, TransformationType
-from transformation.registry import TransformationRegistry, TransformationMetadata
+from nova_framework.transformation.strategy import TransformationStrategy, TransformationType
+from nova_framework.transformation.registry import TransformationRegistry, TransformationMetadata
 
 
 class TransformationLoader:

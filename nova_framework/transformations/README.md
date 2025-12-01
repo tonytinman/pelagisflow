@@ -180,7 +180,7 @@ def spark():
     return SparkSession.builder.master("local[1]").getOrCreate()
 
 def test_my_transformation(spark):
-    from transformations.python.my_transformation import transform
+    from nova_framework.transformations.python.my_transformation import transform
 
     # Create test data
     df = spark.createDataFrame([(1, "test")], ["id", "value"])

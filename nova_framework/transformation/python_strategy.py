@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, Callable
 from pyspark.sql import DataFrame, SparkSession
 
-from transformation.base import AbstractTransformationStrategy, TransformationType
+from nova_framework.transformation.base import AbstractTransformationStrategy, TransformationType
 
 
 class PythonTransformationStrategy(AbstractTransformationStrategy):

@@ -28,7 +28,7 @@ from pyspark.sql import functions as F
 from typing import Optional
 
 # Import framework base class
-from transformations.python.base import AbstractTransformation
+from nova_framework.transformations.python.base import AbstractTransformation
 
 
 # ════════════════════════════════════════════════════════════════════════════

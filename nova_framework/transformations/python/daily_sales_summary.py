@@ -8,7 +8,7 @@ from typing import List
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 
-from transformations.python.common.aggregation_base import TimeSeriesAggregationBase
+from nova_framework.transformations.python.common.aggregation_base import TimeSeriesAggregationBase
 
 
 class DailySalesSummary(TimeSeriesAggregationBase):

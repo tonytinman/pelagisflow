@@ -12,8 +12,8 @@ Used in TransformationPipeline for silver/gold layer processing.
 from pyspark.sql import DataFrame, SparkSession
 from typing import Optional
 from nova_framework.pipeline.stages.base import AbstractStage
-from transformation.loader import TransformationLoader
-from transformation.strategy import TransformationStrategy
+from nova_framework.transformation.loader import TransformationLoader
+from nova_framework.transformation.strategy import TransformationStrategy
 
 
 class TransformationStage(AbstractStage):

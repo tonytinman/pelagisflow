@@ -65,7 +65,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from typing import Optional
 
-from transformations.python.base import AbstractTransformation
+from nova_framework.transformations.python.base import AbstractTransformation
 
 
 class CustomerMetrics(AbstractTransformation):
@@ -152,7 +152,7 @@ Create base classes with common logic that can be reused across multiple transfo
 from typing import List
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from transformations.python.base import AbstractTransformation
+from nova_framework.transformations.python.base import AbstractTransformation
 
 
 class AggregationBase(AbstractTransformation):
@@ -198,7 +198,7 @@ class AggregationBase(AbstractTransformation):
 # transformations/python/daily_sales.py
 
 from pyspark.sql import functions as F
-from transformations.python.common.aggregation_base import AggregationBase
+from nova_framework.transformations.python.common.aggregation_base import AggregationBase
 
 
 class DailySales(AggregationBase):
@@ -277,7 +277,7 @@ def classify_amount(df: DataFrame, amount_col: str) -> DataFrame:
 Use in your transformations:
 
 ```python
-from transformations.python.common.utils import add_date_columns, classify_amount
+from nova_framework.transformations.python.common.utils import add_date_columns, classify_amount
 
 class MyTransformation(AbstractTransformation):
     def run(self, input_df=None, **kwargs):

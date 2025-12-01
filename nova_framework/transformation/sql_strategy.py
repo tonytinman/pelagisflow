@@ -7,7 +7,7 @@ Executes SQL queries to transform data using Spark SQL engine.
 from typing import Optional, Dict, Any
 from pyspark.sql import DataFrame, SparkSession
 
-from transformation.base import AbstractTransformationStrategy, TransformationType
+from nova_framework.transformation.base import AbstractTransformationStrategy, TransformationType
 
 
 class SQLTransformationStrategy(AbstractTransformationStrategy):
