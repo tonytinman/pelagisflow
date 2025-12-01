@@ -7,7 +7,7 @@ Executes SQL/PySpark transformations to create curated datasets.
 from typing import List
 from nova_framework.pipeline.base import BasePipeline
 from nova_framework.pipeline.stages.base import AbstractStage
-from nova_framework.pipeline.stages.transformaton_stage import TransformationStage
+from nova_framework.pipeline.stages.transformation_stage import TransformationStage
 from nova_framework.pipeline.stages.lineage_stage import LineageStage
 from nova_framework.pipeline.stages.hashing_stage import HashingStage
 from nova_framework.pipeline.stages.deduplication_stage import DeduplicationStage

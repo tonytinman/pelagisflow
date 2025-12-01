@@ -41,7 +41,7 @@ This guide explains **what you write** vs **what the framework provides**, with 
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │ 2. FRAMEWORK: TransformationStage                                │
-│    - File: pipeline/stages/transformaton_stage.py                │
+│    - File: pipeline/stages/transformation_stage.py                │
 │    - You don't modify this                                       │
 │                                                                  │
 │    def execute(self, df):                                        │
@@ -125,7 +125,7 @@ pelagisflow/
 │   └── registry.py                   # Manages transformation catalog
 │
 ├── pipeline/stages/                   # ← FRAMEWORK CODE (don't modify)
-│   └── transformaton_stage.py        # Calls your transformation
+│   └── transformation_stage.py        # Calls your transformation
 │
 ├── transformations/                   # ← YOUR CODE (you write this)
 │   ├── python/
@@ -565,7 +565,7 @@ class DailySales(MyAggregationBase):
 | `AbstractTransformation` | `transformations/python/base.py` | Base class you inherit from |
 | `TransformationStrategy` | `transformation/strategy.py` | Loads and executes your code |
 | `TransformationLoader` | `transformation/loader.py` | Creates strategy from contract |
-| `TransformationStage` | `pipeline/stages/transformaton_stage.py` | Calls your transformation |
+| `TransformationStage` | `pipeline/stages/transformation_stage.py` | Calls your transformation |
 | SparkSession | Provided to your class | Access via `self.spark` |
 
 ### You Write (Developer Code)

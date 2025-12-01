@@ -127,7 +127,8 @@ class ScalaTransformationStrategy(AbstractTransformationStrategy):
                 scala_option = jvm.scala.Some(java_input_df)
             else:
                 # Scala Option(None)
-                scala_option = getattr(jvm.scala, "None$").MODULE$
+                none_obj = getattr(jvm.scala, "None$")
+                scala_option = getattr(none_obj, "MODULE$")
 
             # Call transform method
             java_result_df = scala_instance.transform(

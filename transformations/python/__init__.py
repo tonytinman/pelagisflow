@@ -1,11 +1,18 @@
 """
 Python-based transformations for PelagisFlow.
 
-All transformation modules must implement a transform function with signature:
-    def transform(spark: SparkSession, input_df: Optional[DataFrame] = None, **kwargs) -> DataFrame
+Transformations can be implemented as:
+1. Function-based: implement a transform function
+2. Class-based: inherit from AbstractTransformation and implement run() method
 
 Transformations can include:
 - Helper functions
 - Helper classes
 - Multiple files organized as a package
 """
+
+from transformations.python.base import AbstractTransformation
+
+__all__ = [
+    "AbstractTransformation",
+]
