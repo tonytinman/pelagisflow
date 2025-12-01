@@ -119,18 +119,52 @@ class PipelineStats:
     # ========================================================================
     # Finalization and Persistence
     # ========================================================================
-    
+
+    def _calculate_throughput(self, row_count: int) -> Optional[float]:
+        """
+        Calculate throughput in rows per second.
+
+        Args:
+            row_count: Number of rows processed
+
+        Returns:
+            Throughput in rows/second, or None if not calculable
+        """
+        if row_count <= 0 or self.execution_time_seconds <= 0:
+            return None
+        return row_count / self.execution_time_seconds
+
     def finalize(self):
         """
         Finalize statistics collection.
 
-        Records end time and optionally persists to Delta table.
+        Records end time, calculates throughput, and optionally persists to Delta table.
         """
         self.end_time = datetime.now()
 
+        # Calculate throughput metrics
+        read_throughput = self._calculate_throughput(self.rows_read)
+        write_throughput = self._calculate_throughput(self.rows_written)
+
+        # Store throughput in custom stats for persistence
+        if read_throughput is not None:
+            self.custom_stats['read_throughput_rows_per_sec'] = round(read_throughput, 2)
+        if write_throughput is not None:
+            self.custom_stats['write_throughput_rows_per_sec'] = round(write_throughput, 2)
+
+        # Build throughput log message
+        throughput_msg = []
+        if read_throughput is not None:
+            throughput_msg.append(f"read throughput: {read_throughput:.2f} rows/sec")
+        if write_throughput is not None:
+            throughput_msg.append(f"write throughput: {write_throughput:.2f} rows/sec")
+
+        throughput_str = ", ".join(throughput_msg) if throughput_msg else "no throughput data"
+
         logger.info(f"Finalizing stats for process_queue_id={self.process_queue_id}: "
                    f"{self.rows_read} rows read, {self.rows_written} rows written, "
-                   f"{self.execution_time_seconds:.2f}s execution time")
+                   f"{self.execution_time_seconds:.2f}s execution time, "
+                   f"{throughput_str}")
 
         # Optionally persist to table (non-blocking)
         try:
