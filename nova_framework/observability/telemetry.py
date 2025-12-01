@@ -4,9 +4,11 @@ Telemetry and distributed tracing for Nova Framework.
 Provides lightweight telemetry for tracking pipeline execution flow.
 """
 
+import json
 from datetime import datetime
 from typing import Optional
-from pyspark.sql import SparkSession, Row
+from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, TimestampType, StringType, IntegerType
 from nova_framework.core.config import get_config
 from nova_framework.observability.logging import get_logger
 
@@ -55,22 +57,35 @@ class TelemetryEmitter:
             spark = SparkSession.getActiveSession()
             if not spark:
                 return
-            
+
             config = get_config()
             catalog = config.get_catalog_name()
             table = f"{catalog}.{config.observability.telemetry_table}"
-            
-            telemetry_row = Row(
-                timestamp=datetime.now(),
-                origin=origin,
-                message=message,
-                process_queue_id=process_queue_id,
-                metadata=metadata
-            )
-            
-            df = spark.createDataFrame([telemetry_row])
+
+            # Define explicit schema to avoid type inference issues
+            schema = StructType([
+                StructField("timestamp", TimestampType(), False),
+                StructField("origin", StringType(), False),
+                StructField("message", StringType(), False),
+                StructField("process_queue_id", IntegerType(), True),
+                StructField("metadata", StringType(), True)
+            ])
+
+            # Convert metadata dict to JSON string
+            metadata_json = json.dumps(metadata) if metadata else None
+
+            # Create DataFrame with explicit schema
+            data = [(
+                datetime.now(),
+                origin,
+                message,
+                process_queue_id,
+                metadata_json
+            )]
+
+            df = spark.createDataFrame(data, schema)
             df.write.format("delta").mode("append").saveAsTable(table)
-            
+
         except Exception as e:
             logger.error(f"Failed to persist telemetry: {e}")
 
