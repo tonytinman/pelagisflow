@@ -8,6 +8,9 @@ All legacy code removed - clean implementation.
 from datetime import datetime
 from typing import Dict, Any, Optional
 from pyspark.sql import SparkSession, Row
+from nova_framework.observability.logging import get_logger
+
+logger = get_logger("observability.stats")
 
 
 class PipelineStats:
@@ -53,20 +56,22 @@ class PipelineStats:
     def log_rows_read(self, count: int):
         """
         Log number of rows read from source.
-        
+
         Args:
             count: Number of rows read
         """
         self.rows_read = count
-    
+        logger.debug(f"Logged rows_read: {count}")
+
     def log_rows_written(self, count: int):
         """
         Log number of rows written to target.
-        
+
         Args:
             count: Number of rows written
         """
         self.rows_written = count
+        logger.debug(f"Logged rows_written: {count}")
     
     def log_rows_invalid(self, count: int):
         """
@@ -118,63 +123,67 @@ class PipelineStats:
     def finalize(self):
         """
         Finalize statistics collection.
-        
+
         Records end time and optionally persists to Delta table.
         """
         self.end_time = datetime.now()
-        
+
+        logger.info(f"Finalizing stats for process_queue_id={self.process_queue_id}: "
+                   f"{self.rows_read} rows read, {self.rows_written} rows written, "
+                   f"{self.execution_time_seconds:.2f}s execution time")
+
         # Optionally persist to table (non-blocking)
         try:
             self._persist_to_table()
         except Exception as e:
             # Don't fail pipeline if stats persistence fails
-            print(f"[PipelineStats] Warning: Failed to persist stats: {e}")
+            logger.error(f"Failed to persist stats to Delta table: {e}", exc_info=True)
     
     def _persist_to_table(self):
         """
         Persist statistics to Delta table.
-        
+
         Writes to: {catalog}.nova_framework.pipeline_stats
         """
+        # Get Spark session
+        spark = SparkSession.getActiveSession()
+        if not spark:
+            logger.warning("No active Spark session - cannot persist stats to Delta table")
+            return
+
+        # Get catalog from environment
         try:
-            # Get Spark session
-            spark = SparkSession.getActiveSession()
-            if not spark:
-                return  # No Spark session available
-            
-            # Get catalog from environment
-            # Try to get from config, fallback to default
-            try:
-                from nova_framework.core.config import get_config
-                config = get_config()
-                catalog = config.get_catalog_name()
-            except:
-                # Fallback if config not available
-                catalog = "cluk_dev_nova"
-            
-            # Target table
-            table_name = f"{catalog}.nova_framework.pipeline_stats"
-            
-            # Create stats row
-            stats_row = Row(
-                process_queue_id=self.process_queue_id,
-                execution_start=self.start_time,
-                execution_end=self.end_time,
-                execution_time_seconds=self.execution_time_seconds,
-                rows_read=self.rows_read,
-                rows_written=self.rows_written,
-                rows_invalid=self.rows_invalid,
-                custom_stats=self.custom_stats,
-                timestamp=datetime.now()
-            )
-            
-            # Write to Delta table
-            df = spark.createDataFrame([stats_row])
-            df.write.format("delta").mode("append").saveAsTable(table_name)
-            
+            from nova_framework.core.config import get_config
+            config = get_config()
+            catalog = config.get_catalog_name()
         except Exception as e:
-            # Log but don't fail
-            print(f"[PipelineStats] Could not persist to Delta: {e}")
+            # Fallback if config not available
+            logger.warning(f"Could not get catalog from config: {e}. Using default 'cluk_dev_nova'")
+            catalog = "cluk_dev_nova"
+
+        # Target table
+        table_name = f"{catalog}.nova_framework.pipeline_stats"
+
+        logger.info(f"Persisting pipeline stats to {table_name}")
+
+        # Create stats row
+        stats_row = Row(
+            process_queue_id=self.process_queue_id,
+            execution_start=self.start_time,
+            execution_end=self.end_time,
+            execution_time_seconds=self.execution_time_seconds,
+            rows_read=self.rows_read,
+            rows_written=self.rows_written,
+            rows_invalid=self.rows_invalid,
+            custom_stats=self.custom_stats,
+            timestamp=datetime.now()
+        )
+
+        # Write to Delta table
+        df = spark.createDataFrame([stats_row])
+        df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table_name)
+
+        logger.info(f"Successfully persisted stats to {table_name}")
     
     # ========================================================================
     # Properties and Summary
