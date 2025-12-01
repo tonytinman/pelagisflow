@@ -157,24 +157,26 @@ class SCD2Writer(AbstractWriter):
         
         # Insert new, changed, and deleted rows
         to_insert = new.union(changed)
-        
+
         if soft_delete and deleted_df.count() > 0:
             to_insert = to_insert.unionByName(deleted_df)
-        
-        if to_insert.count() > 0:
+
+        # Collect statistics BEFORE writing (after writing, counts may return 0)
+        new_count = new.count()
+        changed_count = changed.count()
+        deleted_count = deleted_df.count() if soft_delete else 0
+        total_inserted = to_insert.count()
+
+        logger.info(f"About to insert: new={new_count}, changed={changed_count}, deleted={deleted_count}, total={total_inserted}")
+
+        if total_inserted > 0:
             to_insert.write \
                 .format("delta") \
                 .mode("append") \
                 .option("mergeSchema", "true") \
                 .partitionBy(partition_col) \
                 .saveAsTable(target)
-        
-        # Collect statistics
-        new_count = new.count()
-        changed_count = changed.count()
-        deleted_count = deleted_df.count() if soft_delete else 0
-        total_inserted = to_insert.count()
-        
+
         self._log_write_stats(total_inserted, "scd2")
         self.pipeline_stats.log_stat("scd2_new", new_count)
         self.pipeline_stats.log_stat("scd2_changed", changed_count)
