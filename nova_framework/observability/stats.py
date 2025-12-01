@@ -207,10 +207,12 @@ class PipelineStats:
         # Ensure schema exists
         try:
             spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+            logger.info(f"Schema creation check completed")
         except Exception as e:
             logger.warning(f"Could not create schema {schema_name}: {e}")
 
         # Define explicit schema to avoid type inference issues
+        logger.info(f"About to define StructType schema")
         schema = StructType([
             StructField("process_queue_id", IntegerType(), False),
             StructField("execution_start", TimestampType(), False),
@@ -222,11 +224,16 @@ class PipelineStats:
             StructField("custom_stats", StringType(), True),
             StructField("timestamp", TimestampType(), False)
         ])
+        logger.info(f"Schema definition completed")
 
         # Convert custom_stats dict to JSON string
+        logger.info(f"About to convert custom_stats to JSON: {self.custom_stats}")
         custom_stats_json = json.dumps(self.custom_stats) if self.custom_stats else None
+        logger.info(f"JSON conversion completed: {custom_stats_json}")
 
         # Create data tuple with explicit schema
+        logger.info(f"About to create data tuple")
+        logger.info(f"Values: process_queue_id={self.process_queue_id}, start_time={self.start_time}, end_time={self.end_time}")
         data = [(
             self.process_queue_id,
             self.start_time,
@@ -238,8 +245,10 @@ class PipelineStats:
             custom_stats_json,
             datetime.now()
         )]
+        logger.info(f"Data tuple created successfully")
 
         # Create DataFrame
+        logger.info(f"About to create DataFrame from data")
         df = spark.createDataFrame(data, schema)
         logger.info(f"DataFrame created with {df.count()} rows")
         logger.info("DataFrame contents:")
