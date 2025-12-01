@@ -1,5 +1,5 @@
 """
-Unit tests for transformation strategies.
+Unit tests for unified transformation strategy.
 """
 
 import pytest
@@ -7,10 +7,7 @@ from unittest.mock import Mock, MagicMock, patch
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
-from transformation.base import TransformationType, AbstractTransformationStrategy
-from transformation.sql_strategy import SQLTransformationStrategy
-from transformation.python_strategy import PythonTransformationStrategy
-from transformation.scala_strategy import ScalaTransformationStrategy
+from transformation.strategy import TransformationStrategy, TransformationType
 from transformation.registry import TransformationRegistry, TransformationMetadata
 from transformation.loader import TransformationLoader
 
@@ -44,13 +41,18 @@ def sample_df(spark):
     return spark.createDataFrame(data, schema)
 
 
-class TestSQLTransformationStrategy:
-    """Tests for SQL transformation strategy."""
+class TestTransformationStrategy:
+    """Tests for unified transformation strategy."""
 
+    # SQL Tests
     def test_sql_strategy_initialization(self, spark):
         """Test SQL strategy can be initialized."""
         sql = "SELECT * FROM input_table"
-        strategy = SQLTransformationStrategy(spark, sql)
+        strategy = TransformationStrategy(
+            spark,
+            transformation_type=TransformationType.SQL,
+            sql=sql
+        )
 
         assert strategy.transformation_type == TransformationType.SQL
         assert strategy.sql == sql
@@ -58,19 +60,31 @@ class TestSQLTransformationStrategy:
     def test_sql_strategy_validation_fails_empty_sql(self, spark):
         """Test SQL strategy validation fails with empty SQL."""
         with pytest.raises(ValueError, match="SQL query cannot be empty"):
-            SQLTransformationStrategy(spark, "")
+            TransformationStrategy(
+                spark,
+                transformation_type=TransformationType.SQL,
+                sql=""
+            )
 
     def test_sql_strategy_validation_fails_none_sql(self, spark):
         """Test SQL strategy validation fails with None SQL."""
-        with pytest.raises(ValueError, match="SQL query must be a non-empty string"):
-            SQLTransformationStrategy(spark, None)
+        with pytest.raises(ValueError, match="SQL transformation requires 'sql' parameter"):
+            TransformationStrategy(
+                spark,
+                transformation_type=TransformationType.SQL,
+                sql=None
+            )
 
     def test_sql_strategy_transform(self, spark, sample_df):
         """Test SQL strategy transformation."""
         sample_df.createOrReplaceTempView("input_table")
 
         sql = "SELECT customer_id, name, amount * 2 as doubled_amount FROM input_table"
-        strategy = SQLTransformationStrategy(spark, sql)
+        strategy = TransformationStrategy(
+            spark,
+            transformation_type=TransformationType.SQL,
+            sql=sql
+        )
 
         result = strategy.transform(sample_df)
 
@@ -81,7 +95,11 @@ class TestSQLTransformationStrategy:
     def test_sql_strategy_custom_temp_view_name(self, spark, sample_df):
         """Test SQL strategy with custom temp view name."""
         sql = "SELECT * FROM my_custom_view WHERE amount > 150"
-        strategy = SQLTransformationStrategy(spark, sql)
+        strategy = TransformationStrategy(
+            spark,
+            transformation_type=TransformationType.SQL,
+            sql=sql
+        )
 
         result = strategy.transform(sample_df, temp_view_name="my_custom_view")
 
@@ -91,7 +109,11 @@ class TestSQLTransformationStrategy:
     def test_sql_strategy_metadata(self, spark):
         """Test SQL strategy metadata."""
         sql = "SELECT * FROM table"
-        strategy = SQLTransformationStrategy(spark, sql)
+        strategy = TransformationStrategy(
+            spark,
+            transformation_type=TransformationType.SQL,
+            sql=sql
+        )
 
         metadata = strategy.get_metadata()
 
@@ -99,14 +121,12 @@ class TestSQLTransformationStrategy:
         assert metadata['sql'] == sql
         assert metadata['sql_length'] == len(sql)
 
-
-class TestPythonTransformationStrategy:
-    """Tests for Python transformation strategy."""
-
+    # Python Tests
     def test_python_strategy_initialization(self, spark):
         """Test Python strategy can be initialized."""
-        strategy = PythonTransformationStrategy(
+        strategy = TransformationStrategy(
             spark,
+            transformation_type=TransformationType.PYTHON,
             module_path="test_module",
             function_name="transform"
         )
@@ -117,18 +137,18 @@ class TestPythonTransformationStrategy:
 
     def test_python_strategy_validation_fails_empty_module(self, spark):
         """Test Python strategy validation fails with empty module path."""
-        with pytest.raises(ValueError, match="module_path must be specified"):
-            PythonTransformationStrategy(spark, "", "transform")
-
-    def test_python_strategy_validation_fails_empty_function(self, spark):
-        """Test Python strategy validation fails with empty function name."""
-        with pytest.raises(ValueError, match="function_name must be specified"):
-            PythonTransformationStrategy(spark, "module", "")
+        with pytest.raises(ValueError, match="Python transformation requires 'module_path' parameter"):
+            TransformationStrategy(
+                spark,
+                transformation_type=TransformationType.PYTHON,
+                module_path=None
+            )
 
     def test_python_strategy_metadata(self, spark):
         """Test Python strategy metadata."""
-        strategy = PythonTransformationStrategy(
+        strategy = TransformationStrategy(
             spark,
+            transformation_type=TransformationType.PYTHON,
             module_path="test_module",
             function_name="my_transform"
         )
@@ -141,8 +161,9 @@ class TestPythonTransformationStrategy:
 
     def test_python_strategy_load_fails_nonexistent_module(self, spark):
         """Test Python strategy fails to load nonexistent module."""
-        strategy = PythonTransformationStrategy(
+        strategy = TransformationStrategy(
             spark,
+            transformation_type=TransformationType.PYTHON,
             module_path="nonexistent_module",
             function_name="transform"
         )
@@ -150,14 +171,12 @@ class TestPythonTransformationStrategy:
         with pytest.raises(ValueError, match="Module not found"):
             strategy.transform()
 
-
-class TestScalaTransformationStrategy:
-    """Tests for Scala transformation strategy."""
-
+    # Scala Tests
     def test_scala_strategy_initialization(self, spark):
         """Test Scala strategy can be initialized."""
-        strategy = ScalaTransformationStrategy(
+        strategy = TransformationStrategy(
             spark,
+            transformation_type=TransformationType.SCALA,
             class_name="com.example.MyTransformation"
         )
 
@@ -166,22 +185,28 @@ class TestScalaTransformationStrategy:
 
     def test_scala_strategy_validation_fails_empty_class_name(self, spark):
         """Test Scala strategy validation fails with empty class name."""
-        with pytest.raises(ValueError, match="class_name must be specified"):
-            ScalaTransformationStrategy(spark, "")
+        with pytest.raises(ValueError, match="Scala transformation requires 'class_name' parameter"):
+            TransformationStrategy(
+                spark,
+                transformation_type=TransformationType.SCALA,
+                class_name=None
+            )
 
     def test_scala_strategy_validation_fails_nonexistent_jar(self, spark):
         """Test Scala strategy validation fails with nonexistent JAR."""
         with pytest.raises(ValueError, match="JAR file not found"):
-            ScalaTransformationStrategy(
+            TransformationStrategy(
                 spark,
+                transformation_type=TransformationType.SCALA,
                 class_name="com.example.Test",
                 jar_path="/nonexistent/path.jar"
             )
 
     def test_scala_strategy_metadata(self, spark):
         """Test Scala strategy metadata."""
-        strategy = ScalaTransformationStrategy(
+        strategy = TransformationStrategy(
             spark,
+            transformation_type=TransformationType.SCALA,
             class_name="com.example.MyTransformation",
             jar_path="/path/to/jar.jar"
         )
@@ -350,7 +375,7 @@ class TestTransformationLoader:
         loader = TransformationLoader(spark)
         strategy = loader.load_python("test_module", "transform")
 
-        assert isinstance(strategy, PythonTransformationStrategy)
+        assert isinstance(strategy, TransformationStrategy)
         assert strategy.module_path == "test_module"
 
     def test_loader_load_scala(self, spark):
@@ -358,7 +383,7 @@ class TestTransformationLoader:
         loader = TransformationLoader(spark)
         strategy = loader.load_scala("com.example.Test")
 
-        assert isinstance(strategy, ScalaTransformationStrategy)
+        assert isinstance(strategy, TransformationStrategy)
         assert strategy.class_name == "com.example.Test"
 
     def test_loader_load_from_contract_sql(self, spark, sample_df):
@@ -374,7 +399,8 @@ class TestTransformationLoader:
         loader = TransformationLoader(spark)
         strategy = loader.load_from_contract(contract)
 
-        assert isinstance(strategy, SQLTransformationStrategy)
+        assert isinstance(strategy, TransformationStrategy)
+        assert strategy.transformation_type == TransformationType.SQL
 
     def test_loader_load_from_contract_python(self, spark):
         """Test loading transformation from contract with Python."""
@@ -389,7 +415,8 @@ class TestTransformationLoader:
         loader = TransformationLoader(spark)
         strategy = loader.load_from_contract(contract)
 
-        assert isinstance(strategy, PythonTransformationStrategy)
+        assert isinstance(strategy, TransformationStrategy)
+        assert strategy.transformation_type == TransformationType.PYTHON
         assert strategy.function_name == 'my_transform'
 
     def test_loader_load_from_contract_scala(self, spark):
@@ -404,7 +431,8 @@ class TestTransformationLoader:
         loader = TransformationLoader(spark)
         strategy = loader.load_from_contract(contract)
 
-        assert isinstance(strategy, ScalaTransformationStrategy)
+        assert isinstance(strategy, TransformationStrategy)
+        assert strategy.transformation_type == TransformationType.SCALA
         assert strategy.class_name == 'com.example.MyTransform'
 
     def test_loader_load_from_contract_invalid_type(self, spark):
@@ -434,7 +462,7 @@ class TestTransformationLoader:
         loader = TransformationLoader(spark, registry=registry)
         strategy = loader.load_from_registry("test_transform")
 
-        assert isinstance(strategy, PythonTransformationStrategy)
+        assert isinstance(strategy, TransformationStrategy)
         assert strategy.module_path == "test_module"
 
     def test_loader_load_from_registry_not_found(self, spark, tmp_path):

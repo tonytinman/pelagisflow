@@ -7,10 +7,7 @@ Loads transformation strategies at runtime based on data contract specifications
 from typing import Optional, Dict, Any
 from pyspark.sql import SparkSession
 
-from transformation.base import AbstractTransformationStrategy, TransformationType
-from transformation.sql_strategy import SQLTransformationStrategy
-from transformation.python_strategy import PythonTransformationStrategy
-from transformation.scala_strategy import ScalaTransformationStrategy
+from transformation.strategy import TransformationStrategy, TransformationType
 from transformation.registry import TransformationRegistry, TransformationMetadata
 
 
@@ -49,7 +46,7 @@ class TransformationLoader:
         self,
         name: str,
         config: Optional[Dict[str, Any]] = None
-    ) -> AbstractTransformationStrategy:
+    ) -> TransformationStrategy:
         """
         Load a transformation by name from the registry.
 
@@ -76,7 +73,7 @@ class TransformationLoader:
         self,
         contract: Dict[str, Any],
         config: Optional[Dict[str, Any]] = None
-    ) -> AbstractTransformationStrategy:
+    ) -> TransformationStrategy:
         """
         Load a transformation based on data contract specification.
 
@@ -134,7 +131,7 @@ class TransformationLoader:
         self,
         sql: str,
         config: Optional[Dict[str, Any]] = None
-    ) -> SQLTransformationStrategy:
+    ) -> TransformationStrategy:
         """
         Create SQL transformation strategy directly.
 
@@ -143,16 +140,21 @@ class TransformationLoader:
             config: Optional configuration
 
         Returns:
-            SQL transformation strategy
+            Transformation strategy configured for SQL
         """
-        return SQLTransformationStrategy(self.spark, sql, config)
+        return TransformationStrategy(
+            self.spark,
+            transformation_type=TransformationType.SQL,
+            sql=sql,
+            config=config
+        )
 
     def load_python(
         self,
         module_path: str,
         function_name: str = "transform",
         config: Optional[Dict[str, Any]] = None
-    ) -> PythonTransformationStrategy:
+    ) -> TransformationStrategy:
         """
         Create Python transformation strategy directly.
 
@@ -162,13 +164,14 @@ class TransformationLoader:
             config: Optional configuration
 
         Returns:
-            Python transformation strategy
+            Transformation strategy configured for Python
         """
-        return PythonTransformationStrategy(
+        return TransformationStrategy(
             self.spark,
-            module_path,
-            function_name,
-            config
+            transformation_type=TransformationType.PYTHON,
+            module_path=module_path,
+            function_name=function_name,
+            config=config
         )
 
     def load_scala(
@@ -176,7 +179,7 @@ class TransformationLoader:
         class_name: str,
         jar_path: Optional[str] = None,
         config: Optional[Dict[str, Any]] = None
-    ) -> ScalaTransformationStrategy:
+    ) -> TransformationStrategy:
         """
         Create Scala transformation strategy directly.
 
@@ -186,20 +189,21 @@ class TransformationLoader:
             config: Optional configuration
 
         Returns:
-            Scala transformation strategy
+            Transformation strategy configured for Scala
         """
-        return ScalaTransformationStrategy(
+        return TransformationStrategy(
             self.spark,
-            class_name,
-            jar_path,
-            config
+            transformation_type=TransformationType.SCALA,
+            class_name=class_name,
+            jar_path=jar_path,
+            config=config
         )
 
     def _create_from_metadata(
         self,
         metadata: TransformationMetadata,
         config: Optional[Dict[str, Any]] = None
-    ) -> AbstractTransformationStrategy:
+    ) -> TransformationStrategy:
         """
         Create transformation strategy from registry metadata.
 
@@ -211,18 +215,20 @@ class TransformationLoader:
             Instantiated transformation strategy
         """
         if metadata.type == TransformationType.PYTHON:
-            return PythonTransformationStrategy(
+            return TransformationStrategy(
                 self.spark,
-                metadata.module_path,
-                metadata.function_name,
-                config
+                transformation_type=TransformationType.PYTHON,
+                module_path=metadata.module_path,
+                function_name=metadata.function_name,
+                config=config
             )
         elif metadata.type == TransformationType.SCALA:
-            return ScalaTransformationStrategy(
+            return TransformationStrategy(
                 self.spark,
-                metadata.class_name,
-                metadata.jar_path,
-                config
+                transformation_type=TransformationType.SCALA,
+                class_name=metadata.class_name,
+                jar_path=metadata.jar_path,
+                config=config
             )
         else:
             raise ValueError(
