@@ -180,6 +180,7 @@ class PipelineStats:
         Persist statistics to Delta table.
 
         Writes to: {catalog}.nova_framework.pipeline_stats
+        Creates table on first write if it doesn't exist.
         """
         # Get Spark session
         spark = SparkSession.getActiveSession()
@@ -198,9 +199,16 @@ class PipelineStats:
             catalog = "cluk_dev_nova"
 
         # Target table
-        table_name = f"{catalog}.nova_framework.pipeline_stats"
+        schema_name = f"{catalog}.nova_framework"
+        table_name = f"{schema_name}.pipeline_stats"
 
         logger.info(f"Persisting pipeline stats to {table_name}")
+
+        # Ensure schema exists
+        try:
+            spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+        except Exception as e:
+            logger.warning(f"Could not create schema {schema_name}: {e}")
 
         # Define explicit schema to avoid type inference issues
         schema = StructType([
@@ -231,9 +239,20 @@ class PipelineStats:
             datetime.now()
         )]
 
-        # Write to Delta table
+        # Create DataFrame
         df = spark.createDataFrame(data, schema)
-        df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table_name)
+
+        # Check if table exists and write accordingly
+        table_exists = spark.catalog.tableExists(table_name)
+
+        if table_exists:
+            # Table exists - append with schema merge
+            logger.debug(f"Table {table_name} exists - appending data")
+            df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table_name)
+        else:
+            # Table doesn't exist - create it
+            logger.info(f"Table {table_name} does not exist - creating it")
+            df.write.format("delta").mode("overwrite").saveAsTable(table_name)
 
         logger.info(f"Successfully persisted stats to {table_name}")
     

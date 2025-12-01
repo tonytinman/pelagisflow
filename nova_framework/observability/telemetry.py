@@ -52,7 +52,11 @@ class TelemetryEmitter:
         process_queue_id: Optional[int],
         metadata: dict
     ):
-        """Persist telemetry to Delta table."""
+        """
+        Persist telemetry to Delta table.
+
+        Creates table on first write if it doesn't exist.
+        """
         try:
             spark = SparkSession.getActiveSession()
             if not spark:
@@ -60,7 +64,14 @@ class TelemetryEmitter:
 
             config = get_config()
             catalog = config.get_catalog_name()
+            schema_name = f"{catalog}.nova_framework"
             table = f"{catalog}.{config.observability.telemetry_table}"
+
+            # Ensure schema exists
+            try:
+                spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+            except Exception as e:
+                logger.warning(f"Could not create schema {schema_name}: {e}")
 
             # Define explicit schema to avoid type inference issues
             schema = StructType([
@@ -84,10 +95,20 @@ class TelemetryEmitter:
             )]
 
             df = spark.createDataFrame(data, schema)
-            df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table)
+
+            # Check if table exists and write accordingly
+            table_exists = spark.catalog.tableExists(table)
+
+            if table_exists:
+                # Table exists - append with schema merge
+                df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(table)
+            else:
+                # Table doesn't exist - create it
+                logger.info(f"Table {table} does not exist - creating it")
+                df.write.format("delta").mode("overwrite").saveAsTable(table)
 
         except Exception as e:
-            logger.error(f"Failed to persist telemetry: {e}")
+            logger.error(f"Failed to persist telemetry: {e}", exc_info=True)
 
 
 # Backward compatibility
