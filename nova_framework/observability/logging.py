@@ -59,6 +59,13 @@ class FrameworkLogger:
     
     def _setup_handlers(self):
         """Setup log handlers based on configuration."""
+        # Check if handlers already exist (avoid duplicates in Spark executors)
+        if self.logger.handlers:
+            return
+
+        # Prevent propagation to avoid duplicate logs from parent loggers
+        self.logger.propagate = False
+
         # Console handler (always enabled)
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(
@@ -67,7 +74,7 @@ class FrameworkLogger:
             )
         )
         self.logger.addHandler(console_handler)
-        
+
         # Delta handler (if enabled)
         if self.config.observability.log_to_delta:
             catalog = self.config.get_catalog_name()
@@ -77,7 +84,7 @@ class FrameworkLogger:
                 logging.Formatter('%(message)s')
             )
             self.logger.addHandler(delta_handler)
-        
+
         # Set level
         level = getattr(logging, self.config.observability.log_level)
         self.logger.setLevel(level)

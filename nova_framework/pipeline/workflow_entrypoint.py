@@ -15,14 +15,13 @@ Usage:
 import os
 import sys
 
-# Add project root to Python path to enable imports
-# This allows imports like: from pipeline.orchestrator import Pipeline
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Add the repository root to the system path for importing nova_framework
+# Go up two directories from this file's location: pipeline/ -> nova_framework/ -> repo_root/
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, repo_root)
 
 # Import Pipeline from orchestrator
-from pipeline.orchestrator import Pipeline
+from nova_framework.pipeline.orchestrator import Pipeline
 
 
 def main():

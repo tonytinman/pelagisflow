@@ -1,0 +1,72 @@
+---
+# Registry of Python-based transformations
+
+- name: customer_aggregation_v1
+  type: python
+  version: "1.0.0"
+  description: |
+    Comprehensive customer aggregation with metrics, segmentation, and RFM scoring.
+    Reads from customers and orders tables, calculates lifetime value, segment
+    classification, and RFM scores for marketing analysis.
+  module_path: customer_aggregation
+  function_name: transform
+  author: PelagisFlow Team
+  tags:
+    - customer
+    - aggregation
+    - rfm
+    - marketing
+  dependencies:
+    - pyspark>=3.0.0
+  config_schema:
+    type: object
+    properties:
+      source_catalog:
+        type: string
+        description: Source catalog name
+        default: bronze_sales
+      min_order_threshold:
+        type: number
+        description: Minimum order amount to include in calculations
+        default: 0.0
+      current_date:
+        type: string
+        format: date
+        description: Reference date for RFM recency calculation
+
+- name: product_analytics_v1
+  type: python
+  version: "1.0.0"
+  description: |
+    Advanced product analytics with trend detection, seasonality analysis,
+    and profitability metrics. Includes helper modules for metrics calculation
+    and product enrichment.
+  module_path: product_analytics
+  function_name: transform
+  author: PelagisFlow Team
+  tags:
+    - product
+    - analytics
+    - trending
+    - profitability
+  dependencies:
+    - pyspark>=3.0.0
+  config_schema:
+    type: object
+    properties:
+      source_catalog:
+        type: string
+        description: Source catalog name
+        default: bronze_sales
+      include_profitability:
+        type: boolean
+        description: Include profitability metrics
+        default: false
+      velocity_window_days:
+        type: integer
+        description: Number of days for velocity calculation
+        default: 30
+      velocity_threshold:
+        type: number
+        description: Threshold for identifying trending products
+        default: 0.2
