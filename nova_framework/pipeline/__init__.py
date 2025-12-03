@@ -12,8 +12,8 @@ Main Components:
 - processors: Data processing utilities (lineage, hashing, deduplication)
 
 Usage:
-    from nova_framework.pipeline import Pipeline
-    
+    from pipeline import Pipeline
+
     # Create and run pipeline
     pipeline = Pipeline()
     result = pipeline.run(
@@ -22,28 +22,28 @@ Usage:
         source_ref="2024-11-28",
         env="dev"
     )
-    
+
     print(f"Result: {result}")  # "SUCCESS"
 """
 
 # Main entry point
-from nova_framework.pipeline.orchestrator import Pipeline
+from pipeline.orchestrator import Pipeline
 
 # Factory
-from nova_framework.pipeline.factory import PipelineFactory
+from pipeline.factory import PipelineFactory
 
 # Base class
-from nova_framework.pipeline.base import BasePipeline
+from pipeline.base import BasePipeline
 
 # Concrete pipeline strategies
-from nova_framework.pipeline.strategies import (
+from pipeline.strategies import (
     IngestionPipeline,
     TransformationPipeline,
     ValidationPipeline
 )
 
 # Stages (for custom pipelines)
-from nova_framework.pipeline.stages import (
+from pipeline.stages import (
     AbstractStage,
     ReadStage,
     LineageStage,
@@ -55,7 +55,7 @@ from nova_framework.pipeline.stages import (
 )
 
 # Processors (for custom transformations)
-from nova_framework.pipeline.processors import (
+from pipeline.processors import (
     LineageProcessor,
     HashingProcessor,
     DeduplicationProcessor

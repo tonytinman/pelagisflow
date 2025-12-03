@@ -1,0 +1,50 @@
+---
+# Registry of Scala-based transformations
+
+# Example Scala transformation entries
+# Uncomment and configure when you have compiled Scala transformations
+
+# - name: complex_join_v1
+#   type: scala
+#   version: "1.0.0"
+#   description: |
+#     High-performance complex join operation implemented in Scala.
+#     Optimized for large-scale data processing with custom partition strategies.
+#   class_name: com.pelagisflow.transformations.ComplexJoin
+#   jar_path: transformations/scala/complex-join-1.0.jar
+#   author: Data Engineering Team
+#   tags:
+#     - join
+#     - performance
+#     - scala
+#   dependencies:
+#     - spark-core_2.12
+#     - spark-sql_2.12
+#   config_schema:
+#     type: object
+#     properties:
+#       join_type:
+#         type: string
+#         enum: [inner, left, right, outer]
+#         default: inner
+#       partition_columns:
+#         type: array
+#         items:
+#           type: string
+
+# - name: ml_feature_engineering_v1
+#   type: scala
+#   version: "1.0.0"
+#   description: |
+#     Machine learning feature engineering pipeline implemented in Scala.
+#     Provides high-performance feature transformation and encoding.
+#   class_name: com.pelagisflow.transformations.ml.FeatureEngineering
+#   jar_path: transformations/scala/ml-features-1.0.jar
+#   author: ML Engineering Team
+#   tags:
+#     - ml
+#     - features
+#     - scala
+#     - performance
+#   dependencies:
+#     - spark-mllib_2.12

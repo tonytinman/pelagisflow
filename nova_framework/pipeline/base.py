@@ -8,10 +8,10 @@ to customize the stages.
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from pyspark.sql import DataFrame
-from nova_framework.core.context import ExecutionContext
-from nova_framework.observability.stats import PipelineStats
-from nova_framework.pipeline.stages.base import AbstractStage
-from nova_framework.observability.logging import get_logger
+from core.context import ExecutionContext
+from observability.stats import PipelineStats
+from pipeline.stages.base import AbstractStage
+from observability.logging import get_logger
 
 logger = get_logger("pipeline.base")
 
