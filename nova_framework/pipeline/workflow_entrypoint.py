@@ -14,20 +14,9 @@ Usage:
 import sys
 import os
 
-# Add repository root to Python path
-# This file is at: repo_root/nova_framework/pipeline/workflow_entrypoint.py
-# We need to add repo_root to sys.path so nova_framework can be imported
-try:
-    # When running as a file, __file__ is defined
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.abspath(os.path.join(current_dir, "../.."))
-except NameError:
-    # When executed via exec() in notebooks, __file__ may not exist
-    # Assume we're already in the right directory or use cwd
-    repo_root = os.path.abspath(os.path.join(os.getcwd(), "../.."))
-
-if repo_root not in sys.path:
-    sys.path.insert(0, repo_root)
+# Add repository root to Python path for nova_framework imports
+repo_root = os.path.abspath(os.path.join(os.getcwd(), "../../"))
+sys.path.insert(0, repo_root)
 
 from nova_framework.pipeline.orchestrator import Pipeline
 
