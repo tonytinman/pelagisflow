@@ -91,16 +91,19 @@ def main():
 
         if result == "SUCCESS":
             print("[PipelineFlow] ✅ Pipeline completed successfully")
-            sys.exit(0)
+            # Don't call sys.exit(0) in Databricks - it raises SystemExit exception
+            return
         else:
             print(f"[PipelineFlow] ❌ Pipeline failed with result: {result}")
-            sys.exit(1)
+            # Raise exception instead of sys.exit(1) for proper Databricks error handling
+            raise RuntimeError(f"Pipeline failed with result: {result}")
 
     except Exception as e:
         print(f"[PipelineFlow] ❌ Pipeline execution failed with exception: {e}")
         import traceback
         traceback.print_exc()
-        sys.exit(1)
+        # Re-raise exception for Databricks to handle, don't use sys.exit(1)
+        raise
 
 
 if __name__ == "__main__":
