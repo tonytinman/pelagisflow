@@ -80,26 +80,29 @@ class FileReader(AbstractReader):
                 df = self._read_file(file_path, expected_schema, file_format)
                 # Trigger read to catch type mismatch errors (Spark is lazy)
                 total_rows = df.count()
+                # Separate valid/invalid rows
+                valid_df, invalid_df, row_stats = self._separate_valid_invalid(df, expected_schema)
             except Exception as e:
                 error_msg = str(e)
                 # Check for known Parquet type mismatch errors
                 parquet_errors = ["PARQUET_COLUMN_DATA_TYPE_MISMATCH", "INT96", "FIXED_LEN_BYTE_ARRAY"]
                 if any(err in error_msg for err in parquet_errors):
                     logger.warning(
-                        f"Parquet type mismatch detected during count(). "
+                        f"Parquet type mismatch detected. "
                         f"Retrying with schema casting. Error: {error_msg[:200]}"
                     )
                     # Retry with casting fallback
                     df = self._read_parquet_with_casting(file_path, expected_schema)
                     total_rows = df.count()
+                    # Separate valid/invalid rows after successful cast
+                    valid_df, invalid_df, row_stats = self._separate_valid_invalid(df, expected_schema)
                 else:
                     raise
         else:
             df = self._read_file(file_path, expected_schema, file_format)
             total_rows = df.count()
-        
-        # Separate valid/invalid rows
-        valid_df, invalid_df, row_stats = self._separate_valid_invalid(df, expected_schema)
+            # Separate valid/invalid rows
+            valid_df, invalid_df, row_stats = self._separate_valid_invalid(df, expected_schema)
         
         # Log statistics
         self._log_read_stats(total_rows, row_stats['valid_rows'], row_stats['invalid_rows'])
