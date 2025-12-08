@@ -13,23 +13,32 @@ Use `parallel_pipeline_runner.py` - a standalone script you can copy into any no
 ```python
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from nova_framework.pipeline.orchestrator import Pipeline
+import os
 
-# Define pipeline configurations - use data_contract_name as the key
-pipeline_configs = {
-    "data.galahad.quolive_manager_staff_admin": {
-        "process_queue_id": 175,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    },
-    "data.galahad.customers": {
-        "process_queue_id": 176,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    },
-    # Add more pipelines...
-}
+# Set your constants
+SOURCE_REF = "2025-12-08"
+ENV = "dev"
+PROCESS_QUEUE_ID_START = 8000
+VOLUME_BASE_PATH = f"/Volumes/cluk_dev_nova/bronze_galahad/raw/{SOURCE_REF}"
 
-# Run in parallel (up to 16 concurrent)
+# Auto-discover pipelines from volume folders
+folders = [f for f in os.listdir(VOLUME_BASE_PATH) if os.path.isdir(os.path.join(VOLUME_BASE_PATH, f))]
+folders.sort()
+
+configs = [
+    {
+        "process_queue_id": PROCESS_QUEUE_ID_START + idx,
+        "data_contract_name": f"data.galahad.{folder}",
+        "source_ref": SOURCE_REF,
+        "env": ENV
+    }
+    for idx, folder in enumerate(folders)
+]
+
+pipeline_configs = {cfg["data_contract_name"]: cfg for cfg in configs}
+print(f"Discovered {len(pipeline_configs)} pipelines")
+
+# Run in parallel
 def run_pipeline(contract_name, cfg):
     pipeline = Pipeline()
     return pipeline.run(
@@ -41,17 +50,11 @@ def run_pipeline(contract_name, cfg):
 
 results = {}
 with ThreadPoolExecutor(max_workers=16) as executor:
-    futures = {
-        executor.submit(run_pipeline, name, config): name
-        for name, config in pipeline_configs.items()
-    }
+    futures = {executor.submit(run_pipeline, name, config): name for name, config in pipeline_configs.items()}
     for future in as_completed(futures):
         name = futures[future]
         results[name] = future.result()
-
-# Check results
-for name, status in results.items():
-    print(f"{name}: {status}")
+        print(f"{name}: {results[name]}")
 ```
 
 ### Option 2: Full Databricks Notebook
@@ -64,32 +67,31 @@ Import `parallel_pipeline_notebook_example.py` as a Databricks notebook for a co
 
 ## Configuration
 
-Simply use the data_contract_name as the dictionary key (it's already unique):
+The script auto-discovers pipelines by reading folder names from a volume path. Just set these constants:
 
 ```python
-pipeline_configs = {
-    "data.galahad.quolive_manager_staff_admin": {
-        "process_queue_id": 175,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    },
-    "data.galahad.customers": {
-        "process_queue_id": 176,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    }
-}
+# Constants
+SOURCE_REF = "2025-12-08"  # Your date or source reference
+ENV = "dev"  # Environment: dev/test/prod
+PROCESS_QUEUE_ID_START = 8000  # Starting queue ID (auto-increments)
+
+# Volume path - script will discover all folders here
+VOLUME_BASE_PATH = f"/Volumes/cluk_dev_nova/bronze_galahad/raw/{SOURCE_REF}"
 ```
 
-Or use a list if you prefer:
+The script will:
+1. List all folders in the volume path
+2. Generate `data.galahad.{folder_name}` for each folder
+3. Auto-assign process_queue_id starting from 8000 (8000, 8001, 8002, ...)
+4. Create pipeline configs with your SOURCE_REF and ENV
 
+Example: If the volume contains folders `customers`, `orders`, `products`, it generates:
 ```python
-configs_list = [
-    {"process_queue_id": 175, "data_contract_name": "data.galahad.quolive_manager_staff_admin", "source_ref": "2025-12-08", "env": "dev"},
-    {"process_queue_id": 176, "data_contract_name": "data.galahad.customers", "source_ref": "2025-12-08", "env": "dev"},
-]
-# Convert to dict
-pipeline_configs = {cfg["data_contract_name"]: cfg for cfg in configs_list}
+{
+    "data.galahad.customers": {"process_queue_id": 8000, "source_ref": "2025-12-08", "env": "dev"},
+    "data.galahad.orders": {"process_queue_id": 8001, "source_ref": "2025-12-08", "env": "dev"},
+    "data.galahad.products": {"process_queue_id": 8002, "source_ref": "2025-12-08", "env": "dev"}
+}
 ```
 
 ## Concurrency

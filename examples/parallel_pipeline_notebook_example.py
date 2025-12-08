@@ -10,38 +10,66 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from nova_framework.pipeline.orchestrator import Pipeline
+import os
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Configuration
-# MAGIC Define your pipeline configurations below
+# MAGIC Set constants and volume path for auto-discovery
 
 # COMMAND ----------
 
-# Define your pipeline configurations
-# Use data_contract_name as the key - it's already unique and used for auditing
-pipeline_configs = {
-    "data.galahad.quolive_manager_staff_admin": {
-        "process_queue_id": 175,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    },
-    "data.galahad.customers": {
-        "process_queue_id": 176,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    },
-    "data.galahad.orders": {
-        "process_queue_id": 177,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    },
-    # Add up to 16 pipelines total
-}
+# Constants for all pipelines
+SOURCE_REF = "2025-12-08"  # Date or source reference
+ENV = "dev"  # Environment: dev, test, prod
+PROCESS_QUEUE_ID_START = 8000  # Starting ID for process queue
+
+# Volume path to discover pipeline folders
+VOLUME_BASE_PATH = f"/Volumes/cluk_dev_nova/bronze_galahad/raw/{SOURCE_REF}"
 
 # Maximum number of concurrent pipeline executions
 MAX_WORKERS = 16
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Auto-Discover Pipelines from Volume Folders
+
+# COMMAND ----------
+
+def discover_pipelines(base_path, source_ref, env, start_id=8000):
+    """Discover pipelines by reading folder names from volume path."""
+    print(f"Discovering pipelines in: {base_path}")
+
+    if not os.path.exists(base_path):
+        raise ValueError(f"Volume path does not exist: {base_path}")
+
+    # Get all directories
+    folders = [f for f in os.listdir(base_path) if os.path.isdir(os.path.join(base_path, f))]
+
+    if not folders:
+        raise ValueError(f"No folders found in: {base_path}")
+
+    folders.sort()
+    print(f"Found {len(folders)} folders: {folders}")
+
+    # Generate configs
+    configs_list = []
+    for idx, folder_name in enumerate(folders):
+        configs_list.append({
+            "process_queue_id": start_id + idx,
+            "data_contract_name": f"data.galahad.{folder_name}",
+            "source_ref": source_ref,
+            "env": env
+        })
+
+    # Convert to dict
+    return {cfg["data_contract_name"]: cfg for cfg in configs_list}
+
+# Generate pipeline configs
+pipeline_configs = discover_pipelines(VOLUME_BASE_PATH, SOURCE_REF, ENV, PROCESS_QUEUE_ID_START)
+print(f"\nGenerated {len(pipeline_configs)} pipeline configurations")
 
 # COMMAND ----------
 

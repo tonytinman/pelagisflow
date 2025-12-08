@@ -1,58 +1,94 @@
 """
 Standalone Parallel Pipeline Runner for Databricks Notebooks
 
-Copy this entire script into a Databricks notebook cell and run it.
-Adjust the pipeline_configs dictionary with your pipeline parameters.
+Auto-discovers pipelines by reading folder names from a Databricks volume path.
+Generates pipeline configs with auto-incrementing process_queue_ids.
 
 Usage:
     1. Copy this script into a notebook cell
-    2. Update pipeline_configs with your pipeline details
-    3. Run the cell
+    2. Update the constants (SOURCE_REF, ENV, VOLUME_BASE_PATH)
+    3. Run the cell - it will discover and execute all pipelines in parallel
+
+Example:
+    If your volume path contains folders: customers, orders, products
+    It will automatically execute:
+    - data.galahad.customers (queue_id: 8000)
+    - data.galahad.orders (queue_id: 8001)
+    - data.galahad.products (queue_id: 8002)
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from nova_framework.pipeline.orchestrator import Pipeline
+import os
 
 # ============================================================================
-# CONFIGURATION - Update this section with your pipeline configurations
+# CONFIGURATION - Update these constants
 # ============================================================================
 
-# Option 1: Use data_contract_name as the dictionary key (SIMPLEST)
-# The contract name is already unique and used for auditing
-pipeline_configs = {
-    "data.galahad.quolive_manager_staff_admin": {
-        "process_queue_id": 175,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    },
-    "data.galahad.customers": {
-        "process_queue_id": 176,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    },
-    "data.galahad.orders": {
-        "process_queue_id": 177,
-        "source_ref": "2025-12-08",
-        "env": "dev"
-    },
-    # Add more pipelines as needed (up to 16 will run in parallel)
-}
+# Constants for all pipelines
+SOURCE_REF = "2025-12-08"  # Date or source reference
+ENV = "dev"  # Environment: dev, test, prod
+PROCESS_QUEUE_ID_START = 8000  # Starting ID for process queue
 
-# Option 2: Use a list (even simpler for iteration)
-# Uncomment to use this approach instead:
-#
-# pipeline_configs_list = [
-#     {"process_queue_id": 175, "data_contract_name": "data.galahad.quolive_manager_staff_admin", "source_ref": "2025-12-08", "env": "dev"},
-#     {"process_queue_id": 176, "data_contract_name": "data.galahad.customers", "source_ref": "2025-12-08", "env": "dev"},
-#     {"process_queue_id": 177, "data_contract_name": "data.galahad.orders", "source_ref": "2025-12-08", "env": "dev"},
-# ]
-#
-# # Convert list to dict using data_contract_name as key
-# pipeline_configs = {cfg["data_contract_name"]: cfg for cfg in pipeline_configs_list}
+# Volume path to discover pipeline folders
+VOLUME_BASE_PATH = f"/Volumes/cluk_dev_nova/bronze_galahad/raw/{SOURCE_REF}"
 
 # Maximum number of pipelines to run concurrently
 MAX_WORKERS = 16
+
+# ============================================================================
+# AUTO-DISCOVER PIPELINES FROM VOLUME FOLDERS
+# ============================================================================
+
+def discover_pipelines(base_path, source_ref, env, start_id=8000):
+    """
+    Discover pipelines by reading folder names from volume path.
+
+    Returns list of pipeline configs with auto-generated IDs.
+    """
+    print(f"Discovering pipelines in: {base_path}")
+
+    if not os.path.exists(base_path):
+        raise ValueError(f"Volume path does not exist: {base_path}")
+
+    # Get all directories in the volume path
+    folders = [
+        f for f in os.listdir(base_path)
+        if os.path.isdir(os.path.join(base_path, f))
+    ]
+
+    if not folders:
+        raise ValueError(f"No folders found in: {base_path}")
+
+    folders.sort()  # Sort for consistent ordering
+    print(f"Found {len(folders)} folders: {folders}")
+
+    # Generate pipeline configs
+    configs_list = []
+    for idx, folder_name in enumerate(folders):
+        config = {
+            "process_queue_id": start_id + idx,
+            "data_contract_name": f"data.galahad.{folder_name}",
+            "source_ref": source_ref,
+            "env": env
+        }
+        configs_list.append(config)
+
+    # Convert to dict with data_contract_name as key
+    pipeline_configs = {cfg["data_contract_name"]: cfg for cfg in configs_list}
+
+    print(f"Generated {len(pipeline_configs)} pipeline configurations")
+    return pipeline_configs
+
+
+# Generate pipeline configs from volume folders
+pipeline_configs = discover_pipelines(
+    base_path=VOLUME_BASE_PATH,
+    source_ref=SOURCE_REF,
+    env=ENV,
+    start_id=PROCESS_QUEUE_ID_START
+)
 
 # ============================================================================
 # EXECUTION LOGIC - No need to modify below this line
