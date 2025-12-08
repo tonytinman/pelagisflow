@@ -74,9 +74,29 @@ class FileReader(AbstractReader):
                 f"{schema_validation['missing_columns']}"
             )
         
-        # Read file
-        df = self._read_file(file_path, expected_schema, file_format)
-        total_rows = df.count()
+        # Read file with Parquet fallback handling
+        if file_format == "parquet":
+            try:
+                df = self._read_file(file_path, expected_schema, file_format)
+                # Trigger read to catch type mismatch errors (Spark is lazy)
+                total_rows = df.count()
+            except Exception as e:
+                error_msg = str(e)
+                # Check for known Parquet type mismatch errors
+                parquet_errors = ["PARQUET_COLUMN_DATA_TYPE_MISMATCH", "INT96", "FIXED_LEN_BYTE_ARRAY"]
+                if any(err in error_msg for err in parquet_errors):
+                    logger.warning(
+                        f"Parquet type mismatch detected during count(). "
+                        f"Retrying with schema casting. Error: {error_msg[:200]}"
+                    )
+                    # Retry with casting fallback
+                    df = self._read_parquet_with_casting(file_path, expected_schema)
+                    total_rows = df.count()
+                else:
+                    raise
+        else:
+            df = self._read_file(file_path, expected_schema, file_format)
+            total_rows = df.count()
         
         # Separate valid/invalid rows
         valid_df, invalid_df, row_stats = self._separate_valid_invalid(df, expected_schema)
@@ -187,13 +207,14 @@ class FileReader(AbstractReader):
                 reader = reader.option("datetimeRebaseMode", "CORRECTED")
                 return reader.load(file_path)
             except Exception as e:
-                # If schema enforcement fails (e.g., FIXED_LEN_BYTE_ARRAY mismatch),
+                # If schema enforcement fails (e.g., FIXED_LEN_BYTE_ARRAY, INT96 mismatch),
                 # read without schema and cast columns
                 error_msg = str(e)
-                if "PARQUET_COLUMN_DATA_TYPE_MISMATCH" in error_msg or "FIXED_LEN_BYTE_ARRAY" in error_msg:
+                parquet_errors = ["PARQUET_COLUMN_DATA_TYPE_MISMATCH", "INT96", "FIXED_LEN_BYTE_ARRAY"]
+                if any(err in error_msg for err in parquet_errors):
                     logger.warning(
-                        f"Parquet type mismatch detected. Reading without schema and casting columns. "
-                        f"Error: {error_msg[:200]}"
+                        f"Parquet type mismatch detected during load(). "
+                        f"Reading without schema and casting columns. Error: {error_msg[:200]}"
                     )
                     return self._read_parquet_with_casting(file_path, schema)
                 else:
