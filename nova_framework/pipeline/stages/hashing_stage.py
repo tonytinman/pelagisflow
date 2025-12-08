@@ -13,16 +13,16 @@ from nova_framework.pipeline.processors.hashing import HashingProcessor
 class HashingStage(AbstractStage):
     """
     Stage for adding hash columns for change tracking.
-    
+
     Adds the following columns:
     - natural_key_hash: Hash of natural key columns
-    - change_key_hash: Hash of change tracking columns
+    - change_key_hash: Hash of change tracking columns (or all columns if not defined)
     - partition_key: Partition hash (modulo of natural_key_hash)
-    
+
     Args:
         context: Execution context
         stats: Statistics tracker
-        
+
     Example:
         stage = HashingStage(context, stats)
         df_with_hashes = stage.execute(df)
@@ -35,28 +35,31 @@ class HashingStage(AbstractStage):
     def execute(self, df: DataFrame) -> DataFrame:
         """
         Add hash columns to DataFrame.
-        
+
         Hash columns are added based on contract configuration:
         - natural_key_columns → natural_key_hash
-        - change_tracking_columns → change_key_hash
+        - change_tracking_columns → change_key_hash (uses all columns if not defined)
         - recommended_partitions → partition_key
-        
+
         Args:
             df: Input DataFrame
-            
+
         Returns:
             DataFrame with hash columns added
-            
+
         Example:
             # Contract specifies:
             # natural_key_columns: [customer_id]
             # change_tracking_columns: [name, email]
-            
+
             df_out = stage.execute(df)
             # df_out has:
             # - natural_key_hash (hash of customer_id)
             # - change_key_hash (hash of name + email)
             # - partition_key (for data distribution)
+
+            # If change_tracking_columns is not defined:
+            # - change_key_hash will hash all columns in the DataFrame
         """
         self.logger.info("Adding hash columns for change tracking")
         
@@ -77,12 +80,21 @@ class HashingStage(AbstractStage):
         if change_key_cols:
             self.logger.info(f"Adding change_key_hash from columns: {change_key_cols}")
             df = self.processor.add_hash_column(
-                df, 
-                'change_key_hash', 
+                df,
+                'change_key_hash',
                 change_key_cols
             )
         else:
-            self.logger.warning("No change_tracking_columns defined in contract")
+            # Use all columns if no change tracking columns are defined
+            all_cols = df.columns
+            self.logger.info(
+                f"No change_tracking_columns defined in contract - using all columns: {all_cols}"
+            )
+            df = self.processor.add_hash_column(
+                df,
+                'change_key_hash',
+                all_cols
+            )
         
         # Add partition hash (only if natural_key_hash exists)
         if 'natural_key_hash' in df.columns:
