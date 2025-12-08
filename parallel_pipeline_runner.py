@@ -18,21 +18,38 @@ from nova_framework.pipeline.orchestrator import Pipeline
 # CONFIGURATION - Update this section with your pipeline configurations
 # ============================================================================
 
+# Option 1: Use data_contract_name as the dictionary key (SIMPLEST)
+# The contract name is already unique and used for auditing
 pipeline_configs = {
-    "pipeline_1": {
+    "data.galahad.quolive_manager_staff_admin": {
         "process_queue_id": 175,
-        "data_contract_name": "data.galahad.quolive_manager_staff_admin",
         "source_ref": "2025-12-08",
         "env": "dev"
     },
-    "pipeline_2": {
+    "data.galahad.customers": {
         "process_queue_id": 176,
-        "data_contract_name": "data.galahad.another_contract",
+        "source_ref": "2025-12-08",
+        "env": "dev"
+    },
+    "data.galahad.orders": {
+        "process_queue_id": 177,
         "source_ref": "2025-12-08",
         "env": "dev"
     },
     # Add more pipelines as needed (up to 16 will run in parallel)
 }
+
+# Option 2: Use a list (even simpler for iteration)
+# Uncomment to use this approach instead:
+#
+# pipeline_configs_list = [
+#     {"process_queue_id": 175, "data_contract_name": "data.galahad.quolive_manager_staff_admin", "source_ref": "2025-12-08", "env": "dev"},
+#     {"process_queue_id": 176, "data_contract_name": "data.galahad.customers", "source_ref": "2025-12-08", "env": "dev"},
+#     {"process_queue_id": 177, "data_contract_name": "data.galahad.orders", "source_ref": "2025-12-08", "env": "dev"},
+# ]
+#
+# # Convert list to dict using data_contract_name as key
+# pipeline_configs = {cfg["data_contract_name"]: cfg for cfg in pipeline_configs_list}
 
 # Maximum number of pipelines to run concurrently
 MAX_WORKERS = 16
@@ -54,10 +71,13 @@ def execute_single_pipeline(pipeline_name, config):
     }
 
     try:
+        # If data_contract_name is the dict key, add it to config
+        data_contract_name = config.get("data_contract_name", pipeline_name)
+
         pipeline = Pipeline()
         execution_result = pipeline.run(
             process_queue_id=config["process_queue_id"],
-            data_contract_name=config["data_contract_name"],
+            data_contract_name=data_contract_name,
             source_ref=config["source_ref"],
             env=config["env"]
         )

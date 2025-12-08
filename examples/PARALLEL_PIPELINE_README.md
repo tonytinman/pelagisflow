@@ -12,20 +12,17 @@ Use `parallel_pipeline_runner.py` - a standalone script you can copy into any no
 
 ```python
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from nova_framework.pipeline.orchestrator import Pipeline
 
-# Define pipeline configurations
+# Define pipeline configurations - use data_contract_name as the key
 pipeline_configs = {
-    "pipeline_1": {
+    "data.galahad.quolive_manager_staff_admin": {
         "process_queue_id": 175,
-        "data_contract_name": "data.galahad.quolive_manager_staff_admin",
         "source_ref": "2025-12-08",
         "env": "dev"
     },
-    "pipeline_2": {
+    "data.galahad.customers": {
         "process_queue_id": 176,
-        "data_contract_name": "data.galahad.customers",
         "source_ref": "2025-12-08",
         "env": "dev"
     },
@@ -33,22 +30,21 @@ pipeline_configs = {
 }
 
 # Run in parallel (up to 16 concurrent)
+def run_pipeline(contract_name, cfg):
+    pipeline = Pipeline()
+    return pipeline.run(
+        cfg["process_queue_id"],
+        cfg.get("data_contract_name", contract_name),
+        cfg["source_ref"],
+        cfg["env"]
+    )
+
 results = {}
 with ThreadPoolExecutor(max_workers=16) as executor:
     futures = {
-        executor.submit(
-            lambda name, cfg: Pipeline().run(
-                cfg["process_queue_id"],
-                cfg["data_contract_name"],
-                cfg["source_ref"],
-                cfg["env"]
-            ),
-            name,
-            config
-        ): name
+        executor.submit(run_pipeline, name, config): name
         for name, config in pipeline_configs.items()
     }
-
     for future in as_completed(futures):
         name = futures[future]
         results[name] = future.result()
@@ -68,17 +64,32 @@ Import `parallel_pipeline_notebook_example.py` as a Databricks notebook for a co
 
 ## Configuration
 
-Adjust the `pipeline_configs` dictionary with your pipeline parameters:
+Simply use the data_contract_name as the dictionary key (it's already unique):
 
 ```python
 pipeline_configs = {
-    "unique_pipeline_name": {
-        "process_queue_id": 175,           # Your process queue ID
-        "data_contract_name": "...",       # Full contract name
-        "source_ref": "2025-12-08",        # Date or reference
-        "env": "dev"                       # Environment: dev/test/prod
+    "data.galahad.quolive_manager_staff_admin": {
+        "process_queue_id": 175,
+        "source_ref": "2025-12-08",
+        "env": "dev"
+    },
+    "data.galahad.customers": {
+        "process_queue_id": 176,
+        "source_ref": "2025-12-08",
+        "env": "dev"
     }
 }
+```
+
+Or use a list if you prefer:
+
+```python
+configs_list = [
+    {"process_queue_id": 175, "data_contract_name": "data.galahad.quolive_manager_staff_admin", "source_ref": "2025-12-08", "env": "dev"},
+    {"process_queue_id": 176, "data_contract_name": "data.galahad.customers", "source_ref": "2025-12-08", "env": "dev"},
+]
+# Convert to dict
+pipeline_configs = {cfg["data_contract_name"]: cfg for cfg in configs_list}
 ```
 
 ## Concurrency

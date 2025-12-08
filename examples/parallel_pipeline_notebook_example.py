@@ -20,22 +20,20 @@ from nova_framework.pipeline.orchestrator import Pipeline
 # COMMAND ----------
 
 # Define your pipeline configurations
+# Use data_contract_name as the key - it's already unique and used for auditing
 pipeline_configs = {
-    "staff_admin_pipeline": {
+    "data.galahad.quolive_manager_staff_admin": {
         "process_queue_id": 175,
-        "data_contract_name": "data.galahad.quolive_manager_staff_admin",
         "source_ref": "2025-12-08",
         "env": "dev"
     },
-    "customer_pipeline": {
+    "data.galahad.customers": {
         "process_queue_id": 176,
-        "data_contract_name": "data.galahad.customers",
         "source_ref": "2025-12-08",
         "env": "dev"
     },
-    "orders_pipeline": {
+    "data.galahad.orders": {
         "process_queue_id": 177,
-        "data_contract_name": "data.galahad.orders",
         "source_ref": "2025-12-08",
         "env": "dev"
     },
@@ -58,10 +56,13 @@ def execute_pipeline(pipeline_name, config):
     print(f"[{pipeline_name}] Starting...")
 
     try:
+        # If data_contract_name is the dict key, use it; otherwise get from config
+        data_contract_name = config.get("data_contract_name", pipeline_name)
+
         pipeline = Pipeline()
         status = pipeline.run(
             process_queue_id=config["process_queue_id"],
-            data_contract_name=config["data_contract_name"],
+            data_contract_name=data_contract_name,
             source_ref=config["source_ref"],
             env=config["env"]
         )
