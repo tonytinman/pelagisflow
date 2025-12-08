@@ -177,8 +177,32 @@ class FileReader(AbstractReader):
     
     def _read_file(self, file_path: str, schema: StructType, file_format: str) -> DataFrame:
         """Read file with schema applied."""
+
+        # Parquet needs special handling for type mismatches
+        if file_format == "parquet":
+            try:
+                # Try reading with schema first (fastest path)
+                reader = self.spark.read.format(file_format).schema(schema)
+                reader = reader.option("mergeSchema", "true")
+                reader = reader.option("datetimeRebaseMode", "CORRECTED")
+                return reader.load(file_path)
+            except Exception as e:
+                # If schema enforcement fails (e.g., FIXED_LEN_BYTE_ARRAY mismatch),
+                # read without schema and cast columns
+                error_msg = str(e)
+                if "PARQUET_COLUMN_DATA_TYPE_MISMATCH" in error_msg or "FIXED_LEN_BYTE_ARRAY" in error_msg:
+                    logger.warning(
+                        f"Parquet type mismatch detected. Reading without schema and casting columns. "
+                        f"Error: {error_msg[:200]}"
+                    )
+                    return self._read_parquet_with_casting(file_path, schema)
+                else:
+                    # Re-raise if it's a different error
+                    raise
+
+        # Standard path for other formats
         reader = self.spark.read.format(file_format).schema(schema)
-        
+
         # Apply format-specific options
         if file_format == "csv":
             csv_options = self.contract.csv_options or {}
@@ -190,8 +214,42 @@ class FileReader(AbstractReader):
             for key, value in json_options.items():
                 reader = reader.option(key, value)
             reader = reader.option("columnNameOfCorruptRecord", "_corrupt_record")
-        
+
         return reader.load(file_path)
+
+    def _read_parquet_with_casting(self, file_path: str, expected_schema: StructType) -> DataFrame:
+        """
+        Read Parquet without schema enforcement, then cast columns to expected types.
+
+        This handles cases where Parquet physical types (like FIXED_LEN_BYTE_ARRAY)
+        don't match the expected logical types (like string).
+        """
+        logger.info("Reading Parquet without schema enforcement and casting columns...")
+
+        # Read without schema
+        df = self.spark.read.format("parquet").load(file_path)
+
+        # Cast each column to expected type
+        for field in expected_schema.fields:
+            col_name = field.name
+            expected_type = field.dataType
+
+            if col_name in df.columns:
+                # Check if type already matches
+                actual_type = dict(df.dtypes)[col_name]
+                if actual_type != str(expected_type):
+                    logger.info(f"Casting column '{col_name}' from {actual_type} to {expected_type}")
+                    df = df.withColumn(col_name, F.col(col_name).cast(expected_type))
+            else:
+                # Column missing - add as null with correct type
+                logger.warning(f"Column '{col_name}' missing in file, adding as null")
+                df = df.withColumn(col_name, F.lit(None).cast(expected_type))
+
+        # Select only expected columns in expected order
+        df = df.select([field.name for field in expected_schema.fields])
+
+        logger.info("Successfully read and cast Parquet file")
+        return df
     
     def _separate_valid_invalid(
         self, 
