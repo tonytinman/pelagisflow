@@ -1,6 +1,6 @@
 from pyspark.sql.types import (
     StructType, StructField, StringType, IntegerType,
-    DoubleType, DateType, TimestampType
+    DoubleType, DateType, TimestampType, DecimalType
 )
 import yaml
 from pathlib import Path
@@ -183,12 +183,48 @@ class DataContract:
                 type_str = col.get("type", "string").lower()
                 nullable = col.get("nullable", True)
 
-                spark_type = self.TYPE_MAP.get(type_str, StringType())
+                # Parse decimal types
+                if type_str.startswith("decimal"):
+                    spark_type = self._parse_decimal_type(type_str)
+                else:
+                    spark_type = self.TYPE_MAP.get(type_str, StringType())
+
                 fields.append(StructField(name, spark_type, nullable))
 
             self._spark_schema_cache = StructType(fields)
 
         return self._spark_schema_cache
+
+    def _parse_decimal_type(self, type_str: str) -> DecimalType:
+        """
+        Parse decimal type string to DecimalType.
+
+        Supports:
+        - "decimal" -> DecimalType(10, 0)
+        - "decimal(38,0)" -> DecimalType(38, 0)
+        - "decimal(10,2)" -> DecimalType(10, 2)
+
+        Args:
+            type_str: Type string from contract (e.g., "decimal(38,0)")
+
+        Returns:
+            DecimalType with specified precision and scale
+        """
+        import re
+
+        # Default decimal type
+        if type_str == "decimal":
+            return DecimalType(10, 0)
+
+        # Parse decimal(precision, scale)
+        match = re.match(r"decimal\((\d+),\s*(\d+)\)", type_str)
+        if match:
+            precision = int(match.group(1))
+            scale = int(match.group(2))
+            return DecimalType(precision, scale)
+
+        # Fallback to default
+        return DecimalType(10, 0)
 
     # --------------------------------------------------------------------
     # DERIVED: PIPELINE TYPE
