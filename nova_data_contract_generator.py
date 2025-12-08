@@ -47,7 +47,7 @@ DEFAULT_DATA_PRODUCT_SUFFIX = "_raw"
 CONTRACT_OUTPUT_PATH = "/Volumes/cluk_dev_nova/nova_framework/data_contracts/galahad"
 
 DRY_RUN = False
-MAX_THREAD_WORKERS = 4
+MAX_THREAD_WORKERS = 2  # Reduced from 4 to prevent socket exhaustion
 SAMPLE_REPORT_SIZE = 10
 TOP_PK_COMBO_CANDIDATES = 5
 
