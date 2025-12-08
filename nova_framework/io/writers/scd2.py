@@ -82,22 +82,34 @@ class SCD2Writer(AbstractWriter):
         
         # Load current active records
         current = self.spark.table(target).filter("is_current = true")
-        
+
+        # Check if change_key_col exists in current table
+        has_change_key = change_key_col in current.columns
+
         # Identify new, changed, unchanged rows
         joined = incoming_prepared.alias("i").join(
             current.alias("c"),
             F.col(f"i.{natural_key_col}") == F.col(f"c.{natural_key_col}"),
             "left"
         )
-        
+
         new = joined.filter(F.col(f"c.{natural_key_col}").isNull()).select("i.*")
-        
-        changed = (
-            joined
-            .filter(F.col(f"c.{natural_key_col}").isNotNull())
-            .filter(F.col(f"i.{change_key_col}") != F.col(f"c.{change_key_col}"))
-            .select("i.*")
-        )
+
+        if has_change_key:
+            changed = (
+                joined
+                .filter(F.col(f"c.{natural_key_col}").isNotNull())
+                .filter(F.col(f"i.{change_key_col}") != F.col(f"c.{change_key_col}"))
+                .select("i.*")
+            )
+        else:
+            # If change_key_col doesn't exist in target, treat all existing records as changed
+            logger.warning(f"Column '{change_key_col}' not found in target table. Treating all existing records as changed.")
+            changed = (
+                joined
+                .filter(F.col(f"c.{natural_key_col}").isNotNull())
+                .select("i.*")
+            )
         
         # Soft delete detection
         deleted_df = self.spark.createDataFrame([], current.schema)
