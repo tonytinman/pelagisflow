@@ -202,10 +202,11 @@ class DataContract:
         Supports:
         - "decimal" -> DecimalType(10, 0)
         - "decimal(38,0)" -> DecimalType(38, 0)
+        - "decimal(38.0)" -> DecimalType(38, 0)
         - "decimal(10,2)" -> DecimalType(10, 2)
 
         Args:
-            type_str: Type string from contract (e.g., "decimal(38,0)")
+            type_str: Type string from contract (e.g., "decimal(38,0)" or "decimal(38.0)")
 
         Returns:
             DecimalType with specified precision and scale
@@ -216,8 +217,8 @@ class DataContract:
         if type_str == "decimal":
             return DecimalType(10, 0)
 
-        # Parse decimal(precision, scale)
-        match = re.match(r"decimal\((\d+),\s*(\d+)\)", type_str)
+        # Parse decimal(precision, scale) - handle both comma and period separators
+        match = re.match(r"decimal\((\d+)[,.\s]+(\d+)\)", type_str)
         if match:
             precision = int(match.group(1))
             scale = int(match.group(2))
