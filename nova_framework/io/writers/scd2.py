@@ -137,18 +137,32 @@ class SCD2Writer(AbstractWriter):
                 )
                 
                 # Create tombstone rows
-                deleted_df = (
-                    current.join(missing, natural_key_col)
-                    .select(
-                        natural_key_col,
-                        change_key_col,
-                        partition_col,
-                        F.lit(process_date).cast("date").alias("effective_from"),
-                        F.lit("9999-12-31").cast("date").alias("effective_to"),
-                        F.lit(True).alias("is_current"),
-                        F.lit(True).alias("deletion_flag")
+                if has_change_key:
+                    deleted_df = (
+                        current.join(missing, natural_key_col)
+                        .select(
+                            natural_key_col,
+                            change_key_col,
+                            partition_col,
+                            F.lit(process_date).cast("date").alias("effective_from"),
+                            F.lit("9999-12-31").cast("date").alias("effective_to"),
+                            F.lit(True).alias("is_current"),
+                            F.lit(True).alias("deletion_flag")
+                        )
                     )
-                )
+                else:
+                    deleted_df = (
+                        current.join(missing, natural_key_col)
+                        .select(
+                            natural_key_col,
+                            F.lit(None).cast("long").alias(change_key_col),
+                            partition_col,
+                            F.lit(process_date).cast("date").alias("effective_from"),
+                            F.lit("9999-12-31").cast("date").alias("effective_to"),
+                            F.lit(True).alias("is_current"),
+                            F.lit(True).alias("deletion_flag")
+                        )
+                    )
                 
                 logger.info(f"Soft deletes detected: {deleted_df.count()}")
         
