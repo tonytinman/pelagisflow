@@ -177,8 +177,20 @@ class FileReader(AbstractReader):
     
     def _read_file(self, file_path: str, schema: StructType, file_format: str) -> DataFrame:
         """Read file with schema applied."""
+        # For Parquet files, read without strict schema to avoid type conversion issues
+        # between different DBR versions (e.g., INT64 vs string in DBR 14.x vs 17.x)
+        if file_format == "parquet":
+            # Read without schema enforcement to allow type coercion
+            df = self.spark.read.format(file_format) \
+                .option("mergeSchema", "true") \
+                .load(file_path)
+
+            # Apply schema by casting columns to expected types
+            return self._apply_schema_with_casting(df, schema)
+
+        # For other formats, use strict schema enforcement
         reader = self.spark.read.format(file_format).schema(schema)
-        
+
         # Apply format-specific options
         if file_format == "csv":
             csv_options = self.contract.csv_options or {}
@@ -190,8 +202,30 @@ class FileReader(AbstractReader):
             for key, value in json_options.items():
                 reader = reader.option(key, value)
             reader = reader.option("columnNameOfCorruptRecord", "_corrupt_record")
-        
+
         return reader.load(file_path)
+
+    def _apply_schema_with_casting(self, df: DataFrame, expected_schema: StructType) -> DataFrame:
+        """
+        Apply expected schema to DataFrame by casting columns.
+        This handles type mismatches that occur between DBR versions.
+        """
+        # Select and cast columns to match expected schema
+        select_exprs = []
+
+        for field in expected_schema.fields:
+            if field.name in df.columns:
+                # Cast column to expected type
+                select_exprs.append(
+                    F.col(field.name).cast(field.dataType).alias(field.name)
+                )
+            else:
+                # Column missing - add as null with correct type
+                select_exprs.append(
+                    F.lit(None).cast(field.dataType).alias(field.name)
+                )
+
+        return df.select(select_exprs)
     
     def _separate_valid_invalid(
         self, 
