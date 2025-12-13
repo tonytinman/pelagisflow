@@ -461,20 +461,45 @@ class DQEngine:
         """
         Apply DQ validation rules without creating a column per rule.
         Ensures schema stability even if no rules exist.
-        
+
+        CRITICAL: This method ALWAYS adds 4 DQ columns to the DataFrame, regardless
+        of whether rules are defined. This prevents schema drift between initial
+        loads (no rules) and subsequent loads (with rules).
+
+        Columns Always Added:
+        1. _dq_failures     - array<struct<...>> of rule failures (empty if no rules)
+        2. _dq_fail_weight  - int, sum of failure weights (0 if no rules)
+        3. dq_score         - double, quality score 0-100 (100 if no rules)
+        4. _dq_error        - boolean, true if any failures (false if no rules)
+
+        When rules is empty or None:
+        - All rows get dq_score = 100.0 (perfect score)
+        - _dq_failures = empty array []
+        - _dq_fail_weight = 0
+        - _dq_error = false
+
+        This ensures consistent schema for downstream processing and prevents
+        mergeSchema overhead when quality rules are added later.
+
         Args:
             df: Input DataFrame
-            rules: List of validation rule dicts
-            
+            rules: List of validation rule dicts (can be empty or None)
+
         Returns:
             Tuple of (summary_dict, annotated_df, errors_df)
-            
+
         Example:
+            # With rules
             rules = [
                 {"rule": "not_null", "column": "customer_id", "weight": 2},
                 {"rule": "regex", "column": "email", "pattern": "^[\\w.]+@[\\w.]+$", "weight": 1}
             ]
             summary, df_quality, df_errors = engine.apply_dq(df, rules)
+            # df_quality has dq_score based on rule evaluation
+
+            # Without rules (empty list)
+            summary, df_quality, df_errors = engine.apply_dq(df, [])
+            # df_quality has dq_score = 100.0 for all rows
         """
         annotated = df
         failure_structs = []
@@ -511,16 +536,19 @@ class DQEngine:
 
         # ---------------------------------------------------------
         # 2. Always create _dq_failures column
+        #    CRITICAL: Column is created even when rules is empty to prevent schema drift
         #    Empty array if no rules exist
         # ---------------------------------------------------------
         if failure_structs:
+            # Rules exist - create array of failure structs
             annotated = annotated.withColumn("_dq_failures", F.array(*failure_structs))
             annotated = annotated.withColumn(
                 "_dq_failures",
                 F.expr("filter(_dq_failures, x -> x is not null)")
             )
         else:
-            # explicit empty array<struct<...>>
+            # No rules - create explicit empty array with correct schema
+            # This ensures the column exists with proper type for schema consistency
             annotated = annotated.withColumn(
                 "_dq_failures",
                 F.array().cast(
@@ -530,6 +558,7 @@ class DQEngine:
 
         # ---------------------------------------------------------
         # 3. Always create _dq_fail_weight
+        #    Sum of weights from all failed rules (0 if no failures)
         # ---------------------------------------------------------
         annotated = annotated.withColumn(
             "_dq_fail_weight",
@@ -537,20 +566,25 @@ class DQEngine:
         )
 
         # ---------------------------------------------------------
-        # 4. Always create dq_score
+        # 4. Always create dq_score (CRITICAL for schema consistency)
+        #    Quality score from 0-100 (higher = better quality)
         # ---------------------------------------------------------
         if total_weight > 0:
+            # Rules exist - calculate score based on failures
             annotated = annotated.withColumn(
                 "dq_score",
                 ((F.lit(total_weight) - F.col("_dq_fail_weight")) /
                 F.lit(total_weight) * 100.0)
             )
         else:
-            # No rules → score = 100
+            # No rules defined → perfect score = 100
+            # This prevents schema drift between initial load (no rules)
+            # and subsequent loads (with rules)
             annotated = annotated.withColumn("dq_score", F.lit(100.0))
 
         # ---------------------------------------------------------
         # 5. Always create _dq_error
+        #    Boolean flag: true if any validation failures exist
         # ---------------------------------------------------------
         annotated = annotated.withColumn(
             "_dq_error",
