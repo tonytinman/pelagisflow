@@ -79,42 +79,46 @@ class QualityStage(AbstractStage):
             df_clean = df
         
         # Step 2: Apply validation rules
-        if self.context.contract.quality_rules:
+        # ALWAYS apply validation to ensure dq_score column exists (prevents schema drift)
+        quality_rules = self.context.contract.quality_rules or []
+
+        if quality_rules:
             self.logger.info(
-                f"Applying {len(self.context.contract.quality_rules)} validation rules"
+                f"Applying {len(quality_rules)} validation rules"
             )
-            
-            summary, df_with_quality, df_dq_errors = self.engine.apply_dq(
-                df_clean,
-                self.context.contract.quality_rules
-            )
-            
-            # Log DQ statistics
-            total_rows = summary.get('total_rows', 0)
-            failed_rows = summary.get('failed_rows', 0)
-            failed_pct = summary.get('failed_pct', 0)
-            
-            self.stats.log_stat("dq_total_rows", total_rows)
-            self.stats.log_stat("dq_failed_rows", failed_rows)
-            self.stats.log_stat("dq_failed_pct", failed_pct)
-            
+        else:
+            self.logger.info("No validation rules defined - adding dq_score=100 to maintain schema consistency")
+
+        summary, df_with_quality, df_dq_errors = self.engine.apply_dq(
+            df_clean,
+            quality_rules
+        )
+
+        # Log DQ statistics
+        total_rows = summary.get('total_rows', 0)
+        failed_rows = summary.get('failed_rows', 0)
+        failed_pct = summary.get('failed_pct', 0)
+
+        self.stats.log_stat("dq_total_rows", total_rows)
+        self.stats.log_stat("dq_failed_rows", failed_rows)
+        self.stats.log_stat("dq_failed_pct", failed_pct)
+
+        if quality_rules:
             self.logger.info(
                 f"DQ validation complete: {total_rows} rows, "
                 f"{failed_rows} failed ({failed_pct:.2f}%)"
             )
-            
-            # Write DQ errors if any
-            error_count = df_dq_errors.count()
-            if error_count > 0:
-                self.logger.warning(f"Writing {error_count} DQ errors to violations table")
-                self._write_dq_errors(df_dq_errors)
-            else:
-                self.logger.info("No DQ errors detected")
-            
-            return df_with_quality
+
+        # Write DQ errors if any
+        error_count = df_dq_errors.count()
+        if error_count > 0:
+            self.logger.warning(f"Writing {error_count} DQ errors to violations table")
+            self._write_dq_errors(df_dq_errors)
         else:
-            self.logger.info("No validation rules defined, skipping validation")
-            return df_clean
+            if quality_rules:
+                self.logger.info("No DQ errors detected")
+
+        return df_with_quality
     
     def _write_dq_errors(self, df_dq_errors: DataFrame):
         """
@@ -154,19 +158,13 @@ class QualityStage(AbstractStage):
     
     def skip_condition(self) -> bool:
         """
-        Skip if no quality rules are defined.
-        
+        Never skip QualityStage to ensure dq_score column is always present.
+
+        This prevents schema drift between initial loads (no rules) and
+        subsequent loads (with rules). The dq_score column will be set to 100
+        when no validation rules are defined.
+
         Returns:
-            True if stage should be skipped, False otherwise
+            Always False (never skip)
         """
-        has_cleansing = bool(self.context.contract.cleansing_rules)
-        has_validation = bool(self.context.contract.quality_rules)
-        
-        should_skip = not (has_cleansing or has_validation)
-        
-        if should_skip:
-            self.logger.info(
-                "Skipping QualityStage - no cleansing or validation rules defined"
-            )
-        
-        return should_skip
+        return False
