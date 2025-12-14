@@ -7,6 +7,7 @@ Provides data cleansing and validation capabilities for pipeline processing.
 - Validation rules annotate data without modifying original values
 """
 
+from functools import reduce
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql import Window
@@ -646,11 +647,11 @@ class DQEngine:
     def rule_composite_unique(self, df, rule):
         """
         Check if combination of columns is unique.
-        
+
         Args:
             df: Input DataFrame
             rule: Dict with 'columns' key (list of column names)
-            
+
         Returns:
             Boolean expression (True = failure)
         """
@@ -658,6 +659,391 @@ class DQEngine:
         return (
             F.count(F.lit(1)).over(Window.partitionBy(*cols)) > 1
         )
+
+    def rule_length_equals(self, df, rule):
+        """
+        Check if column value length does not equal exact length (for fixed-length codes).
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) and 'length' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "length_equals", "column": "country_code", "length": 2}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        length = rule["length"]
+
+        conditions = [F.length(F.col(col)) != length for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_is_email(self, df, rule):
+        """
+        Check if column value is not a valid email format.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "is_email", "columns": ["email", "alternate_email"]}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+
+        conditions = [~F.col(col).rlike(email_pattern) for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_is_url(self, df, rule):
+        """
+        Check if column value is not a valid URL format.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "is_url", "column": "website"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        url_pattern = r"^https?://[^\s/$.?#].[^\s]*$"
+
+        conditions = [~F.col(col).rlike(url_pattern) for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_is_uuid(self, df, rule):
+        """
+        Check if column value is not a valid UUID format.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "is_uuid", "column": "transaction_id"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        uuid_pattern = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+        conditions = [~F.col(col).rlike(uuid_pattern) for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_is_positive(self, df, rule):
+        """
+        Check if numeric column value is not positive (> 0).
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "is_positive", "columns": ["quantity", "price"]}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+
+        conditions = [self._safe_cast_to_double(col) <= 0 for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_is_negative(self, df, rule):
+        """
+        Check if numeric column value is not negative (< 0).
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "is_negative", "column": "adjustment"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+
+        conditions = [self._safe_cast_to_double(col) >= 0 for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_is_non_negative(self, df, rule):
+        """
+        Check if numeric column value is negative (not >= 0).
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "is_non_negative", "columns": ["age", "balance"]}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+
+        conditions = [self._safe_cast_to_double(col) < 0 for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_starts_with(self, df, rule):
+        """
+        Check if column value does not start with specified prefix.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) and 'prefix' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "starts_with", "column": "account_id", "prefix": "ACC-"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        prefix = rule["prefix"]
+
+        conditions = [~F.col(col).startswith(prefix) for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_ends_with(self, df, rule):
+        """
+        Check if column value does not end with specified suffix.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) and 'suffix' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "ends_with", "column": "filename", "suffix": ".pdf"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        suffix = rule["suffix"]
+
+        conditions = [~F.col(col).endswith(suffix) for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_contains(self, df, rule):
+        """
+        Check if column value does not contain specified substring.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) and 'substring' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "contains", "column": "description", "substring": "URGENT"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        substring = rule["substring"]
+
+        conditions = [~F.col(col).contains(substring) for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_not_contains(self, df, rule):
+        """
+        Check if column value contains forbidden substring (blacklist).
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) and 'substring' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "not_contains", "column": "comment", "substring": "REDACTED"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        substring = rule["substring"]
+
+        conditions = [F.col(col).contains(substring) for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_is_future_date(self, df, rule):
+        """
+        Check if date is not in the future.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) and optional 'format' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "is_future_date", "column": "expiry_date", "format": "yyyy-MM-dd"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        fmt = rule.get("format", "yyyy-MM-dd")
+
+        conditions = [
+            F.to_date(F.col(col), fmt) <= F.current_date() for col in cols if col
+        ]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_is_past_date(self, df, rule):
+        """
+        Check if date is not in the past.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) and optional 'format' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "is_past_date", "column": "birth_date", "format": "yyyy-MM-dd"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        fmt = rule.get("format", "yyyy-MM-dd")
+
+        conditions = [
+            F.to_date(F.col(col), fmt) >= F.current_date() for col in cols if col
+        ]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_date_range(self, df, rule):
+        """
+        Check if date is not within specified range.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column', 'min_date', 'max_date', and optional 'format' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "date_range", "column": "transaction_date", "min_date": "2020-01-01", "max_date": "2025-12-31"}
+        """
+        col = rule["column"]
+        min_date = rule["min_date"]
+        max_date = rule["max_date"]
+        fmt = rule.get("format", "yyyy-MM-dd")
+
+        return (F.to_date(F.col(col), fmt) < F.lit(min_date)) | \
+               (F.to_date(F.col(col), fmt) > F.lit(max_date))
+
+    def rule_greater_than_column(self, df, rule):
+        """
+        Check if column value is not greater than reference column value.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' and 'reference_column' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "greater_than_column", "column": "end_date", "reference_column": "start_date"}
+        """
+        col = rule["column"]
+        reference_column = rule["reference_column"]
+
+        return F.col(col) <= F.col(reference_column)
+
+    def rule_less_than_column(self, df, rule):
+        """
+        Check if column value is not less than reference column value.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' and 'reference_column' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "less_than_column", "column": "discount", "reference_column": "price"}
+        """
+        col = rule["column"]
+        reference_column = rule["reference_column"]
+
+        return F.col(col) >= F.col(reference_column)
+
+    def rule_equals_column(self, df, rule):
+        """
+        Check if column value does not equal reference column value.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' and 'reference_column' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "equals_column", "column": "email_confirmation", "reference_column": "email"}
+        """
+        col = rule["column"]
+        reference_column = rule["reference_column"]
+
+        return F.col(col) != F.col(reference_column)
+
+    def rule_not_in_list(self, df, rule):
+        """
+        Check if value is in forbidden list (blacklist).
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) and 'forbidden_values' keys
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "not_in_list", "column": "status", "forbidden_values": ["DELETED", "ARCHIVED"]}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        forbidden_values = rule["forbidden_values"]
+
+        conditions = [F.col(col).isin(forbidden_values) for col in cols if col]
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
+
+    def rule_is_valid_json(self, df, rule):
+        """
+        Check if column value does not contain valid JSON.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            Boolean expression (True = failure)
+
+        Example:
+            {"rule": "is_valid_json", "column": "metadata"}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+
+        conditions = []
+        for col in cols:
+            if col:
+                # Try to parse JSON; NULL result indicates invalid JSON
+                is_invalid = F.from_json(F.col(col), "string").isNull() & F.col(col).isNotNull()
+                conditions.append(is_invalid)
+
+        return reduce(lambda a, b: a | b, conditions) if len(conditions) > 1 else conditions[0]
 
     # =========================================================================
     # DQ EXECUTION
