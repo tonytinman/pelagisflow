@@ -964,64 +964,64 @@ quality_rules:
 
 ### All Cleansing Rules
 
-| Rule | Purpose | Key Parameters | Example |
-|------|---------|----------------|---------|
-| trim | Remove whitespace | columns | `"  hello  "` → `"hello"` |
-| upper | Convert to uppercase | columns | `"hello"` → `"HELLO"` |
-| lower | Convert to lowercase | columns | `"HELLO"` → `"hello"` |
-| title_case | Title Case | columns | `"john doe"` → `"John Doe"` |
-| truncate | Truncate to max length | column, max_length | `"Long text..."` → `"Long te"` (max_length=7) |
-| pad_left | Left-pad to length | column, length, pad_char | `"123"` → `"0000000123"` (length=10, pad_char="0") |
-| pad_right | Right-pad to length | column, length, pad_char | `"ABC"` → `"ABC       "` (length=10, pad_char=" ") |
-| remove_special_characters | Remove special chars | columns, keep_chars | `"John@Doe#123"` → `"JohnDoe123"` (keep_chars="") |
-| remove_accents | Remove accents | columns | `"José"` → `"Jose"`, `"François"` → `"Francois"` |
-| regex_replace | Replace pattern | column, pattern, replacement | `"(555) 123-4567"` → `"5551234567"` (pattern="[^0-9]", replacement="") |
-| extract_regex | Extract pattern | column, pattern, group | `"(555) 123-4567"` → `"555"` (pattern=`\((\d{3})\)`, group=1) |
-| standardize_email | Lowercase + trim email | columns | `"  John@EXAMPLE.COM  "` → `"john@example.com"` |
-| normalize_boolean_values | Map to True/False | column | `"yes"` → `"True"`, `"0"` → `"False"` |
-| nullify_empty_strings | Empty → NULL | columns | `""` → `NULL`, `"  "` → `NULL` |
-| replace_nulls | NULL → default | column, default_value | `NULL` → `"UNKNOWN"` (default_value="UNKNOWN") |
-| round_numeric | Round decimals | column, decimal_places | `12.3456` → `12.35` (decimal_places=2) |
+| Rule | Purpose | Key Parameters | Example | Contract Config |
+|------|---------|----------------|---------|-----------------|
+| trim | Remove whitespace | columns | `"  hello  "` → `"hello"` | `- rule: trim`<br/>&nbsp;&nbsp;`columns: [name, email]` |
+| upper | Convert to uppercase | columns | `"hello"` → `"HELLO"` | `- rule: upper`<br/>&nbsp;&nbsp;`columns: [country_code]` |
+| lower | Convert to lowercase | columns | `"HELLO"` → `"hello"` | `- rule: lower`<br/>&nbsp;&nbsp;`columns: [email]` |
+| title_case | Title Case | columns | `"john doe"` → `"John Doe"` | `- rule: title_case`<br/>&nbsp;&nbsp;`columns: [first_name, last_name]` |
+| truncate | Truncate to max length | column, max_length | `"Long text..."` → `"Long te"` (max_length=7) | `- rule: truncate`<br/>&nbsp;&nbsp;`column: description`<br/>&nbsp;&nbsp;`max_length: 100` |
+| pad_left | Left-pad to length | column, length, pad_char | `"123"` → `"0000000123"` (length=10, pad_char="0") | `- rule: pad_left`<br/>&nbsp;&nbsp;`column: account_id`<br/>&nbsp;&nbsp;`length: 10`<br/>&nbsp;&nbsp;`pad_char: "0"` |
+| pad_right | Right-pad to length | column, length, pad_char | `"ABC"` → `"ABC       "` (length=10, pad_char=" ") | `- rule: pad_right`<br/>&nbsp;&nbsp;`column: code`<br/>&nbsp;&nbsp;`length: 20`<br/>&nbsp;&nbsp;`pad_char: " "` |
+| remove_special_characters | Remove special chars | columns, keep_chars | `"John@Doe#123"` → `"JohnDoe123"` (keep_chars="") | `- rule: remove_special_characters`<br/>&nbsp;&nbsp;`columns: [name]`<br/>&nbsp;&nbsp;`keep_chars: ".-"` |
+| remove_accents | Remove accents | columns | `"José"` → `"Jose"`, `"François"` → `"Francois"` | `- rule: remove_accents`<br/>&nbsp;&nbsp;`columns: [name, address]` |
+| regex_replace | Replace pattern | column, pattern, replacement | `"(555) 123-4567"` → `"5551234567"` (pattern="[^0-9]", replacement="") | `- rule: regex_replace`<br/>&nbsp;&nbsp;`column: phone`<br/>&nbsp;&nbsp;`pattern: "[^0-9]"`<br/>&nbsp;&nbsp;`replacement: ""` |
+| extract_regex | Extract pattern | column, pattern, group | `"(555) 123-4567"` → `"555"` (pattern=`\((\d{3})\)`, group=1) | `- rule: extract_regex`<br/>&nbsp;&nbsp;`column: phone`<br/>&nbsp;&nbsp;`pattern: '\((\d{3})\)'`<br/>&nbsp;&nbsp;`group: 1` |
+| standardize_email | Lowercase + trim email | columns | `"  John@EXAMPLE.COM  "` → `"john@example.com"` | `- rule: standardize_email`<br/>&nbsp;&nbsp;`columns: [email, alternate_email]` |
+| normalize_boolean_values | Map to True/False | column | `"yes"` → `"True"`, `"0"` → `"False"` | `- rule: normalize_boolean_values`<br/>&nbsp;&nbsp;`column: is_active` |
+| nullify_empty_strings | Empty → NULL | columns | `""` → `NULL`, `"  "` → `NULL` | `- rule: nullify_empty_strings`<br/>&nbsp;&nbsp;`columns: [optional_field]` |
+| replace_nulls | NULL → default | column, default_value | `NULL` → `"UNKNOWN"` (default_value="UNKNOWN") | `- rule: replace_nulls`<br/>&nbsp;&nbsp;`column: status`<br/>&nbsp;&nbsp;`default_value: "UNKNOWN"` |
+| round_numeric | Round decimals | column, decimal_places | `12.3456` → `12.35` (decimal_places=2) | `- rule: round_numeric`<br/>&nbsp;&nbsp;`column: price`<br/>&nbsp;&nbsp;`decimal_places: 2` |
 
 ### All Validation Rules
 
-| Rule | Purpose | Key Parameters | Example |
-|------|---------|----------------|---------|
-| not_null | Not NULL | column, weight | ✓ `"value"` / ✗ `NULL` |
-| not_blank | Not NULL or empty | column, weight | ✓ `"value"` / ✗ `NULL`, `""`, `"  "` |
-| min_length | Min string length | column, value, weight | ✓ `"hello"` (min=3) / ✗ `"hi"` (min=3) |
-| max_length | Max string length | column, value, weight | ✓ `"hello"` (max=10) / ✗ `"very long text"` (max=10) |
-| length_equals | Exact length | columns, length, weight | ✓ `"US"` (length=2) / ✗ `"USA"` (length=2) |
-| is_email | Email format | columns, weight | ✓ `"user@example.com"` / ✗ `"not.an.email"` |
-| is_url | URL format | columns, weight | ✓ `"https://example.com"` / ✗ `"example.com"` |
-| is_uuid | UUID format | columns, weight | ✓ `"550e8400-e29b-41d4-a716-446655440000"` / ✗ `"not-a-uuid"` |
-| is_valid_json | JSON format | columns, weight | ✓ `{"key": "value"}` / ✗ `{invalid}` |
-| is_number | Numeric | column, weight | ✓ `"123"`, `"45.67"` / ✗ `"abc"` |
-| min | Min numeric value | column, value, weight | ✓ `10` (min=5) / ✗ `3` (min=5) |
-| max | Max numeric value | column, value, weight | ✓ `10` (max=100) / ✗ `150` (max=100) |
-| between | Numeric range | column, min, max, weight | ✓ `5` (1-10) / ✗ `15` (1-10) |
-| is_positive | Positive (> 0) | columns, weight | ✓ `5`, `0.1` / ✗ `0`, `-5` |
-| is_negative | Negative (< 0) | columns, weight | ✓ `-5`, `-0.1` / ✗ `0`, `5` |
-| is_non_negative | Non-negative (>= 0) | columns, weight | ✓ `0`, `5` / ✗ `-1`, `-5` |
-| regex | Regex pattern | column, pattern, weight | ✓ `"555-123-4567"` (pattern=`^\d{3}-\d{3}-\d{4}$`) / ✗ `"5551234567"` |
-| allowed_values | Whitelist | column, values, weight | ✓ `"ACTIVE"` (values=["ACTIVE","PENDING"]) / ✗ `"DELETED"` |
-| not_in_list | Blacklist | columns, forbidden_values, weight | ✓ `"ACTIVE"` (forbidden=["DELETED"]) / ✗ `"DELETED"` |
-| starts_with | Prefix match | columns, prefix, weight | ✓ `"ACC-12345"` (prefix="ACC-") / ✗ `"12345"` |
-| ends_with | Suffix match | columns, suffix, weight | ✓ `"file.pdf"` (suffix=".pdf") / ✗ `"file.txt"` |
-| contains | Contains substring | columns, substring, weight | ✓ `"URGENT: Alert"` (substring="URGENT") / ✗ `"Normal message"` |
-| not_contains | Not contains substring | columns, substring, weight | ✓ `"Normal text"` (substring="REDACTED") / ✗ `"REDACTED info"` |
-| is_date | Date format | column, format, weight | ✓ `"2024-01-15"` (format="yyyy-MM-dd") / ✗ `"2024-13-45"` |
-| is_future_date | Future date | columns, format, weight | ✓ `"2030-01-01"` (if today is 2025-12-14) / ✗ `"2020-01-01"` |
-| is_past_date | Past date | columns, format, weight | ✓ `"2020-01-01"` (if today is 2025-12-14) / ✗ `"2030-01-01"` |
-| date_range | Date within range | column, min_date, max_date, format, weight | ✓ `"2023-06-15"` (2020-2025) / ✗ `"2019-01-01"` (2020-2025) |
-| greater_than_column | Column > reference | column, reference_column, weight | ✓ end_date=`"2024-12-31"`, start_date=`"2024-01-01"` / ✗ end_date=`"2024-01-01"`, start_date=`"2024-12-31"` |
-| less_than_column | Column < reference | column, reference_column, weight | ✓ discount=`10`, price=`100` / ✗ discount=`150`, price=`100` |
-| equals_column | Column = reference | column, reference_column, weight | ✓ email=`"a@b.com"`, email_confirm=`"a@b.com"` / ✗ email=`"a@b.com"`, email_confirm=`"x@y.com"` |
-| unique | Unique values | column, weight | ✓ All customer_id values are different / ✗ Duplicate customer_id exists |
-| composite_unique | Unique combination | columns, weight | ✓ Each (customer_id, order_date) combo is unique / ✗ Duplicate combo exists |
-| digits_only | Only digits | column, weight | ✓ `"12345"` / ✗ `"123abc"`, `"12-34"` |
-| letters_only | Only letters | column, weight | ✓ `"ABC"` / ✗ `"ABC123"`, `"AB-C"` |
-| conditional | Custom SQL expression | expression, weight | ✓/✗ depends on custom expression (e.g., `"quantity * price > 0"`) |
+| Rule | Purpose | Key Parameters | Example | Contract Config |
+|------|---------|----------------|---------|-----------------|
+| not_null | Not NULL | column, weight | ✓ `"value"` / ✗ `NULL` | `- rule: not_null`<br/>&nbsp;&nbsp;`column: customer_id`<br/>&nbsp;&nbsp;`weight: 2` |
+| not_blank | Not NULL or empty | column, weight | ✓ `"value"` / ✗ `NULL`, `""`, `"  "` | `- rule: not_blank`<br/>&nbsp;&nbsp;`column: email`<br/>&nbsp;&nbsp;`weight: 2` |
+| min_length | Min string length | column, value, weight | ✓ `"hello"` (min=3) / ✗ `"hi"` (min=3) | `- rule: min_length`<br/>&nbsp;&nbsp;`column: password`<br/>&nbsp;&nbsp;`value: 8`<br/>&nbsp;&nbsp;`weight: 2` |
+| max_length | Max string length | column, value, weight | ✓ `"hello"` (max=10) / ✗ `"very long text"` (max=10) | `- rule: max_length`<br/>&nbsp;&nbsp;`column: username`<br/>&nbsp;&nbsp;`value: 50`<br/>&nbsp;&nbsp;`weight: 1` |
+| length_equals | Exact length | columns, length, weight | ✓ `"US"` (length=2) / ✗ `"USA"` (length=2) | `- rule: length_equals`<br/>&nbsp;&nbsp;`column: country_code`<br/>&nbsp;&nbsp;`length: 2`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_email | Email format | columns, weight | ✓ `"user@example.com"` / ✗ `"not.an.email"` | `- rule: is_email`<br/>&nbsp;&nbsp;`columns: [email, alternate_email]`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_url | URL format | columns, weight | ✓ `"https://example.com"` / ✗ `"example.com"` | `- rule: is_url`<br/>&nbsp;&nbsp;`column: website`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_uuid | UUID format | columns, weight | ✓ `"550e8400-e29b-41d4-a716-446655440000"` / ✗ `"not-a-uuid"` | `- rule: is_uuid`<br/>&nbsp;&nbsp;`column: transaction_id`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_valid_json | JSON format | columns, weight | ✓ `{"key": "value"}` / ✗ `{invalid}` | `- rule: is_valid_json`<br/>&nbsp;&nbsp;`column: metadata`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_number | Numeric | column, weight | ✓ `"123"`, `"45.67"` / ✗ `"abc"` | `- rule: is_number`<br/>&nbsp;&nbsp;`column: quantity`<br/>&nbsp;&nbsp;`weight: 1` |
+| min | Min numeric value | column, value, weight | ✓ `10` (min=5) / ✗ `3` (min=5) | `- rule: min`<br/>&nbsp;&nbsp;`column: age`<br/>&nbsp;&nbsp;`value: 0`<br/>&nbsp;&nbsp;`weight: 1` |
+| max | Max numeric value | column, value, weight | ✓ `10` (max=100) / ✗ `150` (max=100) | `- rule: max`<br/>&nbsp;&nbsp;`column: discount_pct`<br/>&nbsp;&nbsp;`value: 100`<br/>&nbsp;&nbsp;`weight: 1` |
+| between | Numeric range | column, min, max, weight | ✓ `5` (1-10) / ✗ `15` (1-10) | `- rule: between`<br/>&nbsp;&nbsp;`column: rating`<br/>&nbsp;&nbsp;`min: 1`<br/>&nbsp;&nbsp;`max: 5`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_positive | Positive (> 0) | columns, weight | ✓ `5`, `0.1` / ✗ `0`, `-5` | `- rule: is_positive`<br/>&nbsp;&nbsp;`columns: [quantity, price]`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_negative | Negative (< 0) | columns, weight | ✓ `-5`, `-0.1` / ✗ `0`, `5` | `- rule: is_negative`<br/>&nbsp;&nbsp;`column: adjustment`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_non_negative | Non-negative (>= 0) | columns, weight | ✓ `0`, `5` / ✗ `-1`, `-5` | `- rule: is_non_negative`<br/>&nbsp;&nbsp;`columns: [age, balance]`<br/>&nbsp;&nbsp;`weight: 1` |
+| regex | Regex pattern | column, pattern, weight | ✓ `"555-123-4567"` (pattern=`^\d{3}-\d{3}-\d{4}$`) / ✗ `"5551234567"` | `- rule: regex`<br/>&nbsp;&nbsp;`column: phone`<br/>&nbsp;&nbsp;`pattern: '^\d{3}-\d{3}-\d{4}$'`<br/>&nbsp;&nbsp;`weight: 1` |
+| allowed_values | Whitelist | column, values, weight | ✓ `"ACTIVE"` (values=["ACTIVE","PENDING"]) / ✗ `"DELETED"` | `- rule: allowed_values`<br/>&nbsp;&nbsp;`column: status`<br/>&nbsp;&nbsp;`values: ["ACTIVE", "PENDING"]`<br/>&nbsp;&nbsp;`weight: 1` |
+| not_in_list | Blacklist | columns, forbidden_values, weight | ✓ `"ACTIVE"` (forbidden=["DELETED"]) / ✗ `"DELETED"` | `- rule: not_in_list`<br/>&nbsp;&nbsp;`column: status`<br/>&nbsp;&nbsp;`forbidden_values: ["DELETED", "ARCHIVED"]`<br/>&nbsp;&nbsp;`weight: 2` |
+| starts_with | Prefix match | columns, prefix, weight | ✓ `"ACC-12345"` (prefix="ACC-") / ✗ `"12345"` | `- rule: starts_with`<br/>&nbsp;&nbsp;`column: account_id`<br/>&nbsp;&nbsp;`prefix: "ACC-"`<br/>&nbsp;&nbsp;`weight: 1` |
+| ends_with | Suffix match | columns, suffix, weight | ✓ `"file.pdf"` (suffix=".pdf") / ✗ `"file.txt"` | `- rule: ends_with`<br/>&nbsp;&nbsp;`column: filename`<br/>&nbsp;&nbsp;`suffix: ".pdf"`<br/>&nbsp;&nbsp;`weight: 1` |
+| contains | Contains substring | columns, substring, weight | ✓ `"URGENT: Alert"` (substring="URGENT") / ✗ `"Normal message"` | `- rule: contains`<br/>&nbsp;&nbsp;`column: description`<br/>&nbsp;&nbsp;`substring: "URGENT"`<br/>&nbsp;&nbsp;`weight: 2` |
+| not_contains | Not contains substring | columns, substring, weight | ✓ `"Normal text"` (substring="REDACTED") / ✗ `"REDACTED info"` | `- rule: not_contains`<br/>&nbsp;&nbsp;`column: comment`<br/>&nbsp;&nbsp;`substring: "REDACTED"`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_date | Date format | column, format, weight | ✓ `"2024-01-15"` (format="yyyy-MM-dd") / ✗ `"2024-13-45"` | `- rule: is_date`<br/>&nbsp;&nbsp;`column: birth_date`<br/>&nbsp;&nbsp;`format: "yyyy-MM-dd"`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_future_date | Future date | columns, format, weight | ✓ `"2030-01-01"` (if today is 2025-12-14) / ✗ `"2020-01-01"` | `- rule: is_future_date`<br/>&nbsp;&nbsp;`column: expiry_date`<br/>&nbsp;&nbsp;`format: "yyyy-MM-dd"`<br/>&nbsp;&nbsp;`weight: 1` |
+| is_past_date | Past date | columns, format, weight | ✓ `"2020-01-01"` (if today is 2025-12-14) / ✗ `"2030-01-01"` | `- rule: is_past_date`<br/>&nbsp;&nbsp;`column: birth_date`<br/>&nbsp;&nbsp;`format: "yyyy-MM-dd"`<br/>&nbsp;&nbsp;`weight: 1` |
+| date_range | Date within range | column, min_date, max_date, format, weight | ✓ `"2023-06-15"` (2020-2025) / ✗ `"2019-01-01"` (2020-2025) | `- rule: date_range`<br/>&nbsp;&nbsp;`column: transaction_date`<br/>&nbsp;&nbsp;`min_date: "2020-01-01"`<br/>&nbsp;&nbsp;`max_date: "2025-12-31"`<br/>&nbsp;&nbsp;`weight: 1` |
+| greater_than_column | Column > reference | column, reference_column, weight | ✓ end_date=`"2024-12-31"`, start_date=`"2024-01-01"` / ✗ end_date=`"2024-01-01"`, start_date=`"2024-12-31"` | `- rule: greater_than_column`<br/>&nbsp;&nbsp;`column: end_date`<br/>&nbsp;&nbsp;`reference_column: start_date`<br/>&nbsp;&nbsp;`weight: 3` |
+| less_than_column | Column < reference | column, reference_column, weight | ✓ discount=`10`, price=`100` / ✗ discount=`150`, price=`100` | `- rule: less_than_column`<br/>&nbsp;&nbsp;`column: discount`<br/>&nbsp;&nbsp;`reference_column: price`<br/>&nbsp;&nbsp;`weight: 2` |
+| equals_column | Column = reference | column, reference_column, weight | ✓ email=`"a@b.com"`, email_confirm=`"a@b.com"` / ✗ email=`"a@b.com"`, email_confirm=`"x@y.com"` | `- rule: equals_column`<br/>&nbsp;&nbsp;`column: email_confirmation`<br/>&nbsp;&nbsp;`reference_column: email`<br/>&nbsp;&nbsp;`weight: 2` |
+| unique | Unique values | column, weight | ✓ All customer_id values are different / ✗ Duplicate customer_id exists | `- rule: unique`<br/>&nbsp;&nbsp;`column: customer_id`<br/>&nbsp;&nbsp;`weight: 3` |
+| composite_unique | Unique combination | columns, weight | ✓ Each (customer_id, order_date) combo is unique / ✗ Duplicate combo exists | `- rule: composite_unique`<br/>&nbsp;&nbsp;`columns: [customer_id, order_date]`<br/>&nbsp;&nbsp;`weight: 3` |
+| digits_only | Only digits | column, weight | ✓ `"12345"` / ✗ `"123abc"`, `"12-34"` | `- rule: digits_only`<br/>&nbsp;&nbsp;`column: postal_code`<br/>&nbsp;&nbsp;`weight: 1` |
+| letters_only | Only letters | column, weight | ✓ `"ABC"` / ✗ `"ABC123"`, `"AB-C"` | `- rule: letters_only`<br/>&nbsp;&nbsp;`column: state_code`<br/>&nbsp;&nbsp;`weight: 1` |
+| conditional | Custom SQL expression | expression, weight | ✓/✗ depends on custom expression (e.g., `"quantity * price > 0"`) | `- rule: conditional`<br/>&nbsp;&nbsp;`expression: "quantity * price > 0"`<br/>&nbsp;&nbsp;`weight: 2` |
 
 ---
 
