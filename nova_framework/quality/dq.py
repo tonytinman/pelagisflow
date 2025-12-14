@@ -159,11 +159,11 @@ class DQEngine:
     def clean_normalize_boolean_values(self, df, rule):
         """
         Map truthy/falsy forms into True/False strings.
-        
+
         Args:
             df: Input DataFrame
             rule: Dict with 'column' key
-            
+
         Returns:
             DataFrame with normalized boolean values
         """
@@ -171,15 +171,253 @@ class DQEngine:
         if not col:
             logger.warning("clean_normalize_boolean_values: missing 'column' in rule")
             return df
-            
+
         logger.debug(f"Normalizing boolean values for column: {col}")
-        
+
         return df.withColumn(
             col,
             F.when(F.lower(F.col(col)).isin("1", "t", "true", "yes", "y"), "True")
              .when(F.lower(F.col(col)).isin("0", "f", "false", "no", "n"), "False")
              .otherwise(F.col(col))
         )
+
+    def clean_truncate(self, df, rule):
+        """
+        Truncate strings to maximum length.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' and 'max_length' keys
+
+        Returns:
+            DataFrame with truncated column
+
+        Example:
+            {"rule": "truncate", "column": "description", "max_length": 100}
+        """
+        col = rule.get("column")
+        max_length = rule.get("max_length")
+
+        if not col or not max_length:
+            logger.warning("clean_truncate: missing 'column' or 'max_length' in rule")
+            return df
+
+        return df.withColumn(col, F.substring(F.col(col), 1, max_length))
+
+    def clean_pad_left(self, df, rule):
+        """
+        Left-pad strings to fixed length (e.g., '5' -> '005').
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column', 'length', and optional 'pad_char' (default: '0')
+
+        Returns:
+            DataFrame with left-padded column
+
+        Example:
+            {"rule": "pad_left", "column": "account_id", "length": 10, "pad_char": "0"}
+        """
+        col = rule.get("column")
+        length = rule.get("length")
+        pad_char = rule.get("pad_char", "0")
+
+        if not col or not length:
+            logger.warning("clean_pad_left: missing 'column' or 'length' in rule")
+            return df
+
+        return df.withColumn(col, F.lpad(F.col(col), length, pad_char))
+
+    def clean_pad_right(self, df, rule):
+        """
+        Right-pad strings to fixed length.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column', 'length', and optional 'pad_char' (default: ' ')
+
+        Returns:
+            DataFrame with right-padded column
+
+        Example:
+            {"rule": "pad_right", "column": "code", "length": 20, "pad_char": " "}
+        """
+        col = rule.get("column")
+        length = rule.get("length")
+        pad_char = rule.get("pad_char", " ")
+
+        if not col or not length:
+            logger.warning("clean_pad_right: missing 'column' or 'length' in rule")
+            return df
+
+        return df.withColumn(col, F.rpad(F.col(col), length, pad_char))
+
+    def clean_title_case(self, df, rule):
+        """
+        Convert to Title Case (for names, addresses).
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            DataFrame with title-cased column(s)
+
+        Example:
+            {"rule": "title_case", "columns": ["first_name", "last_name", "city"]}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        for col in cols:
+            if col:
+                df = df.withColumn(col, F.initcap(F.col(col)))
+        return df
+
+    def clean_remove_special_characters(self, df, rule):
+        """
+        Remove special characters, optionally keeping specific ones.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'columns' and optional 'keep_chars' (default: '')
+
+        Returns:
+            DataFrame with special characters removed
+
+        Example:
+            {"rule": "remove_special_characters", "columns": ["name"], "keep_chars": ".-"}
+            # Keeps hyphens and periods, removes all other special chars
+        """
+        import re
+
+        cols = rule.get("columns") or [rule.get("column")]
+        keep_chars = rule.get("keep_chars", "")
+
+        # Build pattern: keep alphanumeric, spaces, and specified chars
+        pattern = f"[^a-zA-Z0-9\\s{re.escape(keep_chars)}]"
+
+        for col in cols:
+            if col:
+                df = df.withColumn(col, F.regexp_replace(F.col(col), pattern, ""))
+        return df
+
+    def clean_standardize_email(self, df, rule):
+        """
+        Lowercase and trim emails.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            DataFrame with standardized email column(s)
+
+        Example:
+            {"rule": "standardize_email", "columns": ["email", "alternate_email"]}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+        for col in cols:
+            if col:
+                df = df.withColumn(col, F.lower(F.trim(F.col(col))))
+        return df
+
+    def clean_round_numeric(self, df, rule):
+        """
+        Round numeric values to specified decimal places.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' and optional 'decimal_places' (default: 2)
+
+        Returns:
+            DataFrame with rounded numeric column
+
+        Example:
+            {"rule": "round_numeric", "column": "price", "decimal_places": 2}
+        """
+        col = rule.get("column")
+        decimal_places = rule.get("decimal_places", 2)
+
+        if not col:
+            logger.warning("clean_round_numeric: missing 'column' in rule")
+            return df
+
+        return df.withColumn(col, F.round(F.col(col), decimal_places))
+
+    def clean_replace_nulls(self, df, rule):
+        """
+        Replace NULL values with default.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' and 'default_value'
+
+        Returns:
+            DataFrame with nulls replaced
+
+        Example:
+            {"rule": "replace_nulls", "column": "status", "default_value": "UNKNOWN"}
+        """
+        col = rule.get("column")
+        default_value = rule.get("default_value")
+
+        if not col or default_value is None:
+            logger.warning("clean_replace_nulls: missing 'column' or 'default_value' in rule")
+            return df
+
+        return df.withColumn(col, F.coalesce(F.col(col), F.lit(default_value)))
+
+    def clean_extract_regex(self, df, rule):
+        """
+        Extract substring matching regex pattern.
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column', 'pattern', and optional 'group' (default: 0)
+
+        Returns:
+            DataFrame with extracted value
+
+        Example:
+            # Extract area code from phone: pattern='\\((\\d{3})\\)', group=1
+            {"rule": "extract_regex", "column": "phone", "pattern": "\\((\\d{3})\\)", "group": 1}
+        """
+        col = rule.get("column")
+        pattern = rule.get("pattern")
+        group = rule.get("group", 0)
+
+        if not col or not pattern:
+            logger.warning("clean_extract_regex: missing 'column' or 'pattern' in rule")
+            return df
+
+        return df.withColumn(col, F.regexp_extract(F.col(col), pattern, group))
+
+    def clean_remove_accents(self, df, rule):
+        """
+        Remove accents from characters (é -> e, ñ -> n).
+
+        Args:
+            df: Input DataFrame
+            rule: Dict with 'column' (str) or 'columns' (list) key
+
+        Returns:
+            DataFrame with accents removed
+
+        Example:
+            {"rule": "remove_accents", "columns": ["name", "address"]}
+        """
+        cols = rule.get("columns") or [rule.get("column")]
+
+        # Character mapping for accent removal
+        accented = 'áéíóúàèìòùâêîôûäëïöüãõñçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÄËÏÖÜÃÕÑÇ'
+        unaccented = 'aeiouaeiouaeiouaeiouaoncAEIOUAEIOUAEIOUAEIOUAONC'
+
+        for col in cols:
+            if col:
+                df = df.withColumn(
+                    col,
+                    F.expr(f"translate({col}, '{accented}', '{unaccented}')")
+                )
+        return df
 
     # =========================================================================
     # EVALUATION RULES
