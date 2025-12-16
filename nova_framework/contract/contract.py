@@ -253,6 +253,10 @@ class DataContract:
         If no columns are marked for change tracking, returns all columns
         that are NOT in natural_key_columns.
 
+        Special case: If no explicit primary keys are defined and automatic
+        natural key selection uses all columns, then change tracking also
+        uses all columns to ensure change detection works.
+
         Returns:
             List of change tracking column names
         """
@@ -262,12 +266,24 @@ class DataContract:
         if explicit_tracking:
             return explicit_tracking
 
-        # No explicit tracking - use all columns except natural keys
-        natural_keys = self.natural_key_columns
-        return [
-            c["name"] for c in self.columns
-            if c["name"] not in natural_keys
-        ]
+        # Check if we have explicit primary keys
+        has_explicit_primary_keys = any(c.get("isPrimaryKey") for c in self.columns)
+
+        if has_explicit_primary_keys:
+            # Explicit primary keys exist - use all other columns for change tracking
+            natural_keys = self.natural_key_columns
+            return [
+                c["name"] for c in self.columns
+                if c["name"] not in natural_keys
+            ]
+        else:
+            # No explicit primary keys - automatic selection was used
+            # Use all columns for change tracking (same as natural_key_columns)
+            # This ensures change_key_hash is created even when all columns are natural keys
+            return [
+                c["name"] for c in self.columns
+                if c["name"].lower() not in [e.lower() for e in self.NATURAL_KEY_EXCLUSIONS]
+            ]
 
     # --------------------------------------------------------------------
     # CUSTOM PROPERTIES
