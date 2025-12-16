@@ -211,13 +211,63 @@ class DataContract:
     # DERIVED: NATURAL KEYS & CHANGE TRACKING
     # --------------------------------------------------------------------
 
+    # Columns to exclude from automatic natural key selection
+    NATURAL_KEY_EXCLUSIONS = [
+        'description',
+        'comment',
+        'notes',
+        'remarks',
+        'memo'
+    ]
+
     @property
     def natural_key_columns(self) -> List[str]:
-        return [c["name"] for c in self.columns if c.get("isPrimaryKey")]
+        """
+        Get natural key columns (primary keys).
+
+        Returns columns marked with isPrimaryKey: true.
+        If no columns are marked as primary keys, returns all columns
+        except those in NATURAL_KEY_EXCLUSIONS.
+
+        Returns:
+            List of natural key column names
+        """
+        # Get explicitly marked primary key columns
+        explicit_keys = [c["name"] for c in self.columns if c.get("isPrimaryKey")]
+
+        if explicit_keys:
+            return explicit_keys
+
+        # No explicit keys - use all columns except exclusions
+        return [
+            c["name"] for c in self.columns
+            if c["name"].lower() not in [e.lower() for e in self.NATURAL_KEY_EXCLUSIONS]
+        ]
 
     @property
     def change_tracking_columns(self) -> List[str]:
-        return [c["name"] for c in self.columns if c.get("isChangeTracking")]
+        """
+        Get change tracking columns.
+
+        Returns columns marked with isChangeTracking: true.
+        If no columns are marked for change tracking, returns all columns
+        that are NOT in natural_key_columns.
+
+        Returns:
+            List of change tracking column names
+        """
+        # Get explicitly marked change tracking columns
+        explicit_tracking = [c["name"] for c in self.columns if c.get("isChangeTracking")]
+
+        if explicit_tracking:
+            return explicit_tracking
+
+        # No explicit tracking - use all columns except natural keys
+        natural_keys = self.natural_key_columns
+        return [
+            c["name"] for c in self.columns
+            if c["name"] not in natural_keys
+        ]
 
     # --------------------------------------------------------------------
     # CUSTOM PROPERTIES
