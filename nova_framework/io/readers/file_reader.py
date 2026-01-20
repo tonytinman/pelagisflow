@@ -3,13 +3,13 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import StructType
 from typing import Dict, Any, Tuple, Optional
 from datetime import datetime
-import logging
 
 from nova_framework.io.readers.base import AbstractReader
 from nova_framework.core.context import ExecutionContext
 from nova_framework.observability.stats import PipelineStats
+from nova_framework.observability.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class FileReader(AbstractReader):

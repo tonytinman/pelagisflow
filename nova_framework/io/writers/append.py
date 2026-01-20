@@ -1,10 +1,10 @@
 from pyspark.sql import DataFrame
 from typing import Dict, Any, Optional
-import logging
 
 from nova_framework.io.writers.base import AbstractWriter
+from nova_framework.observability.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AppendWriter(AbstractWriter):
