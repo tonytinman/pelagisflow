@@ -15,11 +15,49 @@ class PrivacyClassification(Enum):
     Privacy/sensitivity classification for data columns.
 
     Maps to data contract 'privacy' field values.
+    Aligned with GDPR categories and industry standards.
+
+    GDPR Categories (Art. 4, 9, 10):
+    - PII: Basic Personal Data (Direct identifiers) - Art. 4
+    - QUASI_PII: Quasi-Personal Data (Indirect identifiers) - Art. 4
+    - SPECIAL: Special Category Personal Data - Art. 9
+    - CRIMINAL: Criminal Offence Data - Art. 10
+    - CHILD: Children's Personal Data - Art. 8
+
+    Industry/Risk-based Categories:
+    - FINANCIAL_PII: Financial Personal Data (sector regulations)
+    - PCI: Payment Card Data (PCI DSS)
+    - AUTH: Authentication & Security Data (Art. 32)
+    - LOCATION: Precise Location Data
+    - TRACKING: Online Identifiers / Tracking Data
+    - HR: Employment / HR Data
+    - COMMERCIAL: Commercially Sensitive Financial Data (non-personal)
+    - IP: Intellectual Property / Trade Secrets (non-personal)
     """
     NONE = "none"
-    PII = "pii"  # Personally Identifiable Information
-    QUASI = "quasi"  # Quasi-identifiers (can identify when combined)
-    VULNERABLE = "vulnerable"  # Vulnerable/special category data
+
+    # GDPR Personal Data Categories
+    PII = "pii"  # Basic Personal Data (Direct identifiers)
+    QUASI_PII = "quasi_pii"  # Quasi-Personal Data (Indirect identifiers)
+    SPECIAL = "special"  # Special Category Personal Data (Art. 9)
+    CRIMINAL = "criminal"  # Criminal Offence Data (Art. 10)
+    CHILD = "child"  # Children's Personal Data (Art. 8)
+
+    # Industry/Risk-based Categories
+    FINANCIAL_PII = "financial_pii"  # Financial Personal Data
+    PCI = "pci"  # Payment Card Data (PCI DSS)
+    AUTH = "auth"  # Authentication & Security Data
+    LOCATION = "location"  # Precise Location Data
+    TRACKING = "tracking"  # Online Identifiers / Tracking Data
+    HR = "hr"  # Employment / HR Data
+
+    # Non-personal but sensitive
+    COMMERCIAL = "commercial"  # Commercially Sensitive Financial Data
+    IP = "ip"  # Intellectual Property / Trade Secrets
+
+    # Legacy aliases (for backward compatibility)
+    QUASI = "quasi_pii"  # Deprecated: use QUASI_PII
+    VULNERABLE = "special"  # Deprecated: use SPECIAL
 
 
 class MaskingStrategy(Enum):
@@ -39,11 +77,28 @@ class MaskingStrategy(Enum):
 
 
 # Default masking strategies for each privacy classification
+# Based on GDPR requirements and industry best practices
 DEFAULT_MASKING_STRATEGIES = {
     PrivacyClassification.NONE: MaskingStrategy.NONE,
-    PrivacyClassification.PII: MaskingStrategy.HASH,
-    PrivacyClassification.QUASI: MaskingStrategy.PARTIAL,
-    PrivacyClassification.VULNERABLE: MaskingStrategy.REDACT,
+
+    # GDPR Categories
+    PrivacyClassification.PII: MaskingStrategy.HASH,  # Hash for joins/analysis
+    PrivacyClassification.QUASI_PII: MaskingStrategy.PARTIAL,  # Generalize/bucket
+    PrivacyClassification.SPECIAL: MaskingStrategy.REDACT,  # Art. 9 - highest protection
+    PrivacyClassification.CRIMINAL: MaskingStrategy.REDACT,  # Art. 10 - redact
+    PrivacyClassification.CHILD: MaskingStrategy.REDACT,  # Art. 8 - protect minors
+
+    # Industry/Risk-based
+    PrivacyClassification.FINANCIAL_PII: MaskingStrategy.HASH,  # Token/encrypt recommended
+    PrivacyClassification.PCI: MaskingStrategy.REDACT,  # PCI DSS - never expose
+    PrivacyClassification.AUTH: MaskingStrategy.REDACT,  # Credentials - never expose
+    PrivacyClassification.LOCATION: MaskingStrategy.PARTIAL,  # Generalize/round
+    PrivacyClassification.TRACKING: MaskingStrategy.HASH,  # Hash for analysis
+    PrivacyClassification.HR: MaskingStrategy.HASH,  # Hash identifiers
+
+    # Non-personal but sensitive (no masking by default, use access control)
+    PrivacyClassification.COMMERCIAL: MaskingStrategy.NONE,  # Access control only
+    PrivacyClassification.IP: MaskingStrategy.NONE,  # Access control only
 }
 
 

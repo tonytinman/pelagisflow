@@ -1,0 +1,165 @@
+# Example Domain Roles with Sensitivity-Aware Access Control
+# Location: /Volumes/{catalog}/contract_registry/access/domains/{domain}/domain.roles.yaml
+
+domain: bronze_galahad
+
+roles:
+  # ========================================================================
+  # ANALYST ROLES - Read-only access with varying sensitivity levels
+  # ========================================================================
+
+  analyst.general:
+    inherits: analyst
+    scope:
+      exclude:
+        - gallive_manager_address  # No access to this sensitive table
+    sensitive_access: [quasi_pii]  # Can see quasi-identifiers unmasked only
+    description: "General analysts - basic data access, quasi-identifiers visible"
+
+  analyst.sensitive:
+    inherits: analyst
+    scope:
+      exclude:
+        - gallive_manager_address
+    sensitive_access: [pii, quasi_pii]  # Can see PII and quasi-identifiers
+    description: "Analysts with PII access - can see direct identifiers"
+
+  analyst.special_category:
+    inherits: analyst
+    scope:
+      exclude:
+        - gallive_manager_address
+    sensitive_access: [pii, quasi_pii, special]  # Full sensitive access
+    description: "Senior analysts - can see special category data (Art. 9)"
+
+  # ========================================================================
+  # ENGINEER ROLES - Read/write access with minimal sensitive data access
+  # ========================================================================
+
+  engineer.general:
+    inherits: engineer
+    scope:
+      include:
+        - gallive_manager_address  # Has table access
+    sensitive_access: [none]  # All sensitive data is masked
+    description: "General engineers - table access but sensitive data masked"
+
+  engineer.data_platform:
+    inherits: engineer
+    scope:
+      include:
+        - gallive_manager_address
+    sensitive_access: [quasi_pii]  # Can see quasi-identifiers for debugging
+    description: "Platform engineers - quasi-identifiers visible for debugging"
+
+  # ========================================================================
+  # SPECIALIST ROLES - Domain-specific sensitive data access
+  # ========================================================================
+
+  finance-specialist.customer-services:
+    inherits: finance-specialist
+    scope:
+      include:
+        - employee_salary
+        - employee_compensation
+    sensitive_access: [pii, financial_pii]  # Financial PII access
+    description: "Customer services finance advisors - salary data access"
+
+  hr-specialist:
+    inherits: analyst
+    scope:
+      include:
+        - employee_records
+        - performance_reviews
+    sensitive_access: [pii, hr, special]  # HR + special category access
+    description: "HR specialists - employee data including special category"
+
+  compliance-officer:
+    inherits: analyst
+    scope:
+      include: []  # Access to all tables
+    sensitive_access: [pii, quasi_pii, special, criminal, child, financial_pii, hr]
+    description: "Compliance officers - full sensitive data access for audits"
+
+  # ========================================================================
+  # ADMIN ROLES
+  # ========================================================================
+
+  nova-admin:
+    inherits: nova-admin
+    scope:
+      include: []  # Access to all tables
+    sensitive_access: []  # All data masked (admin for infrastructure only)
+    description: "Infrastructure admins - no sensitive data access"
+
+# ========================================================================
+# SENSITIVITY LEVEL DEFINITIONS
+# ========================================================================
+#
+# Available sensitivity levels (aligned with GDPR and industry standards):
+#
+# GDPR Personal Data:
+#   - pii: Basic Personal Data (Direct identifiers) - Art. 4
+#     Examples: first_name, last_name, email, phone_number, national_id
+#
+#   - quasi_pii: Quasi-Personal Data (Indirect identifiers) - Art. 4
+#     Examples: postcode, age, gender, job_title, salary_band
+#
+#   - special: Special Category Personal Data - Art. 9 (HIGHEST RISK)
+#     Examples: religion, ethnicity, health_condition, sexual_orientation
+#
+#   - criminal: Criminal Offence Data - Art. 10
+#     Examples: criminal_record_flag, conviction_date, offence_code
+#
+#   - child: Children's Personal Data - Art. 8
+#     Examples: child_name, child_dob, guardian_id
+#
+# Industry/Risk-based:
+#   - financial_pii: Financial Personal Data
+#     Examples: bank_account_number, iban, salary, tax_id
+#
+#   - pci: Payment Card Data (PCI DSS)
+#     Examples: pan, cardholder_name, expiry_date, cvv
+#
+#   - auth: Authentication & Security Data
+#     Examples: password_hash, api_key, oauth_token
+#
+#   - location: Precise Location Data
+#     Examples: gps_latitude, gps_longitude, home_coordinates
+#
+#   - tracking: Online Identifiers / Tracking Data
+#     Examples: ip_address, cookie_id, device_id
+#
+#   - hr: Employment / HR Data
+#     Examples: employee_id, performance_rating, disciplinary_action
+#
+# Non-personal but sensitive:
+#   - commercial: Commercially Sensitive Financial Data
+#     Examples: revenue, forecast, pricing_model, margin
+#
+#   - ip: Intellectual Property / Trade Secrets
+#     Examples: algorithm_details, model_weights, formula
+#
+# Special value:
+#   - none: No sensitive data access (all masked)
+#
+# ========================================================================
+# MASKING BEHAVIOR
+# ========================================================================
+#
+# For each column:
+# 1. Check column's privacy classification (from data contract)
+# 2. Check role's sensitive_access list
+# 3. If classification IN sensitive_access:
+#      → User sees UNMASKED data
+#    Else:
+#      → User sees MASKED data (hash/redact/partial/etc)
+#
+# Example:
+#   Column: EMAIL (privacy: pii)
+#   Role: analyst.general (sensitive_access: [quasi_pii])
+#   Result: analyst.general sees EMAIL as HASHED
+#
+#   Role: analyst.sensitive (sensitive_access: [pii, quasi_pii])
+#   Result: analyst.sensitive sees EMAIL as CLEAR TEXT
+#
