@@ -48,7 +48,8 @@ class PrivilegeIntent:
     ad_group: str
     privilege: UCPrivilege
     reason: str
-    
+    role_name: str = ""
+
     def __post_init__(self):
         """Convert string privilege to enum if needed."""
         if isinstance(self.privilege, str):

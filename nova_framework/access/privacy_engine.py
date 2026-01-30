@@ -274,8 +274,12 @@ class PrivacyEngine:
         """
         Calculate delta between intended and actual masking state.
 
-        Compares what should exist (intents) with what does exist
-        (current_masks) to determine what changes are needed.
+        For every intended column, a CREATE delta is emitted. The underlying
+        operations (CREATE OR REPLACE FUNCTION, SET MASK) are idempotent so
+        this ensures the function body and mask reference are always current.
+
+        For columns that have a mask in UC but no corresponding intent, a
+        DROP delta is emitted to remove the stale mask.
 
         Args:
             intents: Intended masking state (with role-based exemptions)
@@ -286,7 +290,6 @@ class PrivacyEngine:
         """
         deltas = []
 
-        # Create lookup maps
         intent_map = {
             (intent.table, intent.column_name): intent
             for intent in intents
@@ -297,64 +300,25 @@ class PrivacyEngine:
             for mask in current_masks
         }
 
-        # Find columns that need masking added/updated
+        # Emit CREATE for every intended column (idempotent)
         for key, intent in intent_map.items():
             current = current_map.get(key)
-
-            # Generate expected masking expression
-            expected_expr = self.masking_functions.get_masking_expression(
-                strategy=intent.masking_strategy.value,
+            deltas.append(MaskingDelta(
+                action="CREATE",
+                table=intent.table,
                 column_name=intent.column_name,
                 column_type=intent.column_type,
-                exempt_groups=intent.exempt_groups
-            )
+                masking_strategy=intent.masking_strategy,
+                exempt_groups=intent.exempt_groups.copy(),
+                current_masking=(
+                    current.masking_expression if current else None
+                ),
+                reason=intent.reason,
+            ))
 
-            if current is None:
-                # Need to CREATE masking
-                deltas.append(MaskingDelta(
-                    action="CREATE",
-                    table=intent.table,
-                    column_name=intent.column_name,
-                    column_type=intent.column_type,
-                    masking_strategy=intent.masking_strategy,
-                    exempt_groups=intent.exempt_groups.copy(),
-                    current_masking=None,
-                    reason=intent.reason
-                ))
-            else:
-                # Check if masking expression needs updating
-                # Normalize whitespace for comparison
-                current_normalized = self._normalize_sql(current.masking_expression or "")
-                expected_normalized = self._normalize_sql(expected_expr)
-
-                if current_normalized != expected_normalized:
-                    # Drop old masking
-                    deltas.append(MaskingDelta(
-                        action="DROP",
-                        table=intent.table,
-                        column_name=intent.column_name,
-                        column_type=intent.column_type,
-                        masking_strategy=None,
-                        exempt_groups=set(),
-                        current_masking=current.masking_expression,
-                        reason="Masking expression needs update"
-                    ))
-                    # Create new masking
-                    deltas.append(MaskingDelta(
-                        action="CREATE",
-                        table=intent.table,
-                        column_name=intent.column_name,
-                        column_type=intent.column_type,
-                        masking_strategy=intent.masking_strategy,
-                        exempt_groups=intent.exempt_groups.copy(),
-                        current_masking=None,
-                        reason=intent.reason
-                    ))
-
-        # Find columns that need masking removed (in current but not intent)
+        # Drop masks that no longer have an intent
         for key, current in current_map.items():
             if key not in intent_map:
-                # Need to DROP masking
                 deltas.append(MaskingDelta(
                     action="DROP",
                     table=current.table,
@@ -363,33 +327,19 @@ class PrivacyEngine:
                     masking_strategy=None,
                     exempt_groups=set(),
                     current_masking=current.masking_expression,
-                    reason="Column no longer requires masking per contract"
+                    reason="Column no longer requires masking per contract",
                 ))
 
         return deltas
-
-    def _normalize_sql(self, sql: str) -> str:
-        """
-        Normalize SQL expression for comparison.
-
-        Removes extra whitespace, newlines, etc.
-
-        Args:
-            sql: SQL expression
-
-        Returns:
-            Normalized SQL
-        """
-        import re
-        # Remove extra whitespace and newlines
-        normalized = re.sub(r'\s+', ' ', sql.strip())
-        return normalized
 
     def _apply_masking_delta(self, delta: MaskingDelta) -> None:
         """
         Apply a single masking delta to Unity Catalog.
 
-        Executes ALTER TABLE statement to create or drop column masking.
+        For CREATE: registers a masking UDF via CREATE OR REPLACE FUNCTION,
+        then applies it to the column via ALTER TABLE ... SET MASK.
+
+        For DROP: removes the mask from the column, then drops the UDF.
 
         Args:
             delta: Masking delta to apply
@@ -397,47 +347,67 @@ class PrivacyEngine:
         Raises:
             Exception: If SQL execution fails
 
-        Example SQL:
-            CREATE:
-            ALTER TABLE catalog.schema.table
-            ALTER COLUMN email
-            SET MASK CASE
-                WHEN is_account_group_member('engineers') THEN email
-                ELSE sha2(email, 256)
-            END
+        Example SQL (CREATE):
+            CREATE OR REPLACE FUNCTION catalog.schema.nova_mask_table_email(
+                val STRING
+            )
+            RETURNS STRING
+            RETURN CASE
+                WHEN is_account_group_member('analysts') THEN val
+                ELSE sha2(val, 256)
+            END;
 
-            DROP:
             ALTER TABLE catalog.schema.table
             ALTER COLUMN email
-            DROP MASK
+            SET MASK catalog.schema.nova_mask_table_email;
+
+        Example SQL (DROP):
+            ALTER TABLE catalog.schema.table
+            ALTER COLUMN email
+            DROP MASK;
+
+            DROP FUNCTION IF EXISTS catalog.schema.nova_mask_table_email;
         """
+        parts = delta.table.split(".", 2)
+        catalog, schema, table = parts[0], parts[1], parts[2]
+
+        fn_name = self.masking_functions.get_function_name(
+            catalog, schema, table, delta.column_name
+        )
+
         if delta.action == "CREATE":
-            # Generate masking expression with role-based exemptions
-            masking_expr = self.masking_functions.get_masking_expression(
+            # Generate masking expression body (uses 'val' as parameter)
+            masking_body = self.masking_functions.get_masking_expression(
                 strategy=delta.masking_strategy.value,
                 column_name=delta.column_name,
                 column_type=delta.column_type,
-                exempt_groups=delta.exempt_groups
+                exempt_groups=delta.exempt_groups,
             )
 
-            # Apply column mask using ALTER TABLE
-            sql = f"""
-                ALTER TABLE {delta.table}
-                ALTER COLUMN {delta.column_name}
-                SET MASK {masking_expr}
-            """
+            # Step 1: Create or replace the masking function
+            create_fn_sql = self.masking_functions.generate_create_function_sql(
+                fn_name, delta.column_type, masking_body
+            )
+            self.spark.sql(create_fn_sql)
 
-            self.spark.sql(sql)
+            # Step 2: Apply the mask to the column
+            set_mask_sql = self.masking_functions.generate_set_mask_sql(
+                delta.table, delta.column_name, fn_name
+            )
+            self.spark.sql(set_mask_sql)
 
         elif delta.action == "DROP":
-            # Drop column mask
-            sql = f"""
-                ALTER TABLE {delta.table}
-                ALTER COLUMN {delta.column_name}
-                DROP MASK
-            """
+            # Step 1: Remove the mask from the column
+            drop_mask_sql = self.masking_functions.generate_drop_mask_sql(
+                delta.table, delta.column_name
+            )
+            self.spark.sql(drop_mask_sql)
 
-            self.spark.sql(sql)
+            # Step 2: Drop the masking function
+            drop_fn_sql = self.masking_functions.generate_drop_function_sql(
+                fn_name
+            )
+            self.spark.sql(drop_fn_sql)
 
     def preview_changes(
         self,

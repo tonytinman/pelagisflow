@@ -188,51 +188,30 @@ class PrivacyMetadataLoader:
             table=table
         )
 
-        # Get domain metadata to map AD groups -> roles
-        domain_metadata = self.get_domain_metadata(domain)
-        if not domain_metadata:
-            return set()
-
-        # Build reverse mapping: AD group -> role names
-        mappings = domain_metadata.get("mappings", {})
-        ad_group_to_roles: Dict[str, Set[str]] = {}
-
-        for role_name, role_mapping in mappings.items():
-            ad_groups = role_mapping.get("ad_groups", [])
-            for ad_group in ad_groups:
-                if ad_group not in ad_group_to_roles:
-                    ad_group_to_roles[ad_group] = set()
-                ad_group_to_roles[ad_group].add(role_name)
-
-        # Filter groups by sensitivity access
+        # Filter groups by checking ONLY the role that grants table access.
+        # Previously this built a reverse mapping of AD groups to ALL roles
+        # and checked ANY role, which could grant unmasked access via a role
+        # that does not provide table access for this specific table.
         exempt_groups = set()
 
         for intent in intended_privileges:
-            # Must have table-level privilege
             if intent.privilege not in (
                 UCPrivilege.SELECT,
                 UCPrivilege.MODIFY,
-                UCPrivilege.ALL_PRIVILEGES
+                UCPrivilege.ALL_PRIVILEGES,
             ):
                 continue
 
-            ad_group = intent.ad_group
+            # Use the role that actually grants this privilege
+            granting_role = intent.role_name
+            if not granting_role:
+                continue
 
-            # Get roles for this AD group
-            roles = ad_group_to_roles.get(ad_group, set())
-
-            # Check if ANY role for this group has access to this sensitivity
-            has_sensitive_access = False
-            for role_name in roles:
-                role_sensitive_access = self.get_role_sensitive_access(domain, role_name)
-
-                # Check if this role can access this sensitivity level
-                if sensitivity.value in role_sensitive_access:
-                    has_sensitive_access = True
-                    break
-
-            if has_sensitive_access:
-                exempt_groups.add(ad_group)
+            role_sensitive_access = self.get_role_sensitive_access(
+                domain, granting_role
+            )
+            if sensitivity.value in role_sensitive_access:
+                exempt_groups.add(intent.ad_group)
 
         return exempt_groups
 

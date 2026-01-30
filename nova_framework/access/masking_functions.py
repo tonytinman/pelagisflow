@@ -1,355 +1,302 @@
 """
 Column masking functions for Unity Catalog with role-based access control.
 
-Provides SQL expressions for various masking strategies that can be
-applied to sensitive data columns, with conditional unmasking for
-authorized AD groups.
+Generates SQL for Unity Catalog masking UDFs. Each masking function produces
+a SQL expression body suitable for a CREATE FUNCTION statement, using 'val'
+as the function parameter name.
+
+Unity Catalog column masks require a registered function - inline expressions
+are not supported with ALTER TABLE ... SET MASK. This module generates both
+the function body and the full CREATE FUNCTION / ALTER TABLE SQL.
 """
 
-from typing import Optional, Set
+from typing import Set
 
+# Column types where string-based masking strategies (hash, redact, partial,
+# mask_email, mask_postcode) can be applied directly. Non-string columns
+# fall back to nullify since the UDF return type must match the column type.
+_STRING_COMPATIBLE_TYPES = frozenset({
+    "string", "varchar", "char", "text",
+})
+
+
+def _is_string_type(column_type: str) -> bool:
+    """Check if column type supports string masking strategies."""
+    normalised = column_type.strip().lower()
+    # Handle parameterised types like varchar(255)
+    base_type = normalised.split("(")[0].strip()
+    return base_type in _STRING_COMPATIBLE_TYPES
+
+
+def _build_conditional_mask(
+    masked_expr: str,
+    exempt_groups: Set[str],
+) -> str:
+    """
+    Build conditional masking expression based on group membership.
+
+    Uses 'val' as the UDF parameter name throughout.
+
+    Args:
+        masked_expr: SQL expression for the masked value
+        exempt_groups: AD groups that see unmasked data
+
+    Returns:
+        SQL CASE expression with group-based conditions
+
+    Example output (exempt_groups = {"engineers", "admins"}):
+        CASE
+            WHEN is_account_group_member('admins') THEN val
+            WHEN is_account_group_member('engineers') THEN val
+            ELSE sha2(val, 256)
+        END
+    """
+    if not exempt_groups:
+        return masked_expr
+
+    when_clauses = []
+    for group in sorted(exempt_groups):
+        safe_group = group.replace("'", "''")
+        when_clauses.append(
+            f"WHEN is_account_group_member('{safe_group}') THEN val"
+        )
+
+    case_expr = (
+        "CASE\n    "
+        + "\n    ".join(when_clauses)
+        + f"\n    ELSE {masked_expr}\nEND"
+    )
+    return case_expr
+
+
+# ---------------------------------------------------------------------------
+# Strategy implementations - each returns a SQL expression body using 'val'
+# ---------------------------------------------------------------------------
+
+def _hash_expr(exempt_groups: Set[str], algorithm: str = "sha2") -> str:
+    if algorithm == "md5":
+        masked = "md5(val)"
+    else:
+        masked = "sha2(val, 256)"
+    return _build_conditional_mask(masked, exempt_groups)
+
+
+def _redact_expr(exempt_groups: Set[str], replacement: str = "REDACTED") -> str:
+    masked = f"CASE WHEN val IS NOT NULL THEN '{replacement}' ELSE NULL END"
+    return _build_conditional_mask(masked, exempt_groups)
+
+
+def _nullify_expr(exempt_groups: Set[str]) -> str:
+    return _build_conditional_mask("NULL", exempt_groups)
+
+
+def _mask_email_expr(exempt_groups: Set[str]) -> str:
+    masked = (
+        "CASE\n"
+        "            WHEN val IS NOT NULL AND INSTR(val, '@') > 0 THEN\n"
+        "                CONCAT(\n"
+        "                    SUBSTRING(val, 1, 2),\n"
+        "                    '***@',\n"
+        "                    SUBSTRING(val, INSTR(val, '@') + 1)\n"
+        "                )\n"
+        "            ELSE NULL\n"
+        "        END"
+    )
+    return _build_conditional_mask(masked, exempt_groups)
+
+
+def _mask_postcode_expr(exempt_groups: Set[str]) -> str:
+    masked = (
+        "CASE\n"
+        "            WHEN val IS NOT NULL THEN\n"
+        "                CONCAT(\n"
+        "                    TRIM(REGEXP_EXTRACT("
+        "val, '^([A-Z]{1,2}[0-9]{1,2}[A-Z]?)', 1)),\n"
+        "                    ' ***'\n"
+        "                )\n"
+        "            ELSE NULL\n"
+        "        END"
+    )
+    return _build_conditional_mask(masked, exempt_groups)
+
+
+def _partial_expr(
+    exempt_groups: Set[str],
+    visible_chars: int = 4,
+    position: str = "end",
+    mask_char: str = "*",
+) -> str:
+    if position == "end":
+        masked = (
+            "CASE\n"
+            "                WHEN val IS NOT NULL THEN\n"
+            "                    CONCAT(\n"
+            f"                        REPEAT('{mask_char}', "
+            f"GREATEST(0, LENGTH(val) - {visible_chars})),\n"
+            f"                        SUBSTRING(val, -{visible_chars})\n"
+            "                    )\n"
+            "                ELSE NULL\n"
+            "            END"
+        )
+    else:
+        masked = (
+            "CASE\n"
+            "                WHEN val IS NOT NULL THEN\n"
+            "                    CONCAT(\n"
+            f"                        SUBSTRING(val, 1, {visible_chars}),\n"
+            f"                        REPEAT('{mask_char}', "
+            f"GREATEST(0, LENGTH(val) - {visible_chars}))\n"
+            "                    )\n"
+            "                ELSE NULL\n"
+            "            END"
+        )
+    return _build_conditional_mask(masked, exempt_groups)
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 class MaskingFunctions:
     """
-    Collection of masking functions that generate SQL expressions.
+    Generate SQL for Unity Catalog column masking UDFs.
 
-    These functions return SQL expressions that can be used in
-    Unity Catalog ALTER TABLE statements or masking policies.
-
-    All functions support role-based access: groups in exempt_groups
-    see raw data, others see masked data.
+    All generated SQL uses 'val' as the function parameter and is
+    type-aware: string-only strategies (hash, redact, partial, mask_email,
+    mask_postcode) fall back to nullify for non-string columns because the
+    UDF return type must match the column type.
     """
-
-    @staticmethod
-    def _build_conditional_mask(
-        column_name: str,
-        masked_expr: str,
-        exempt_groups: Set[str]
-    ) -> str:
-        """
-        Build conditional masking expression based on group membership.
-
-        Args:
-            column_name: Column to mask
-            masked_expr: SQL expression for masked value
-            exempt_groups: AD groups that see unmasked data
-
-        Returns:
-            SQL CASE expression with group-based conditions
-
-        Example:
-            If exempt_groups = {"engineers", "admins"}:
-            CASE
-                WHEN is_account_group_member('engineers') THEN column_name
-                WHEN is_account_group_member('admins') THEN column_name
-                ELSE <masked_expr>
-            END
-        """
-        if not exempt_groups:
-            # No exempt groups - mask for everyone
-            return masked_expr
-
-        # Build WHEN clauses for each exempt group
-        when_clauses = []
-        for group in sorted(exempt_groups):  # Sort for deterministic output
-            # Escape single quotes in group name
-            safe_group = group.replace("'", "''")
-            when_clauses.append(
-                f"WHEN is_account_group_member('{safe_group}') THEN {column_name}"
-            )
-
-        # Build complete CASE expression
-        case_expr = "CASE\n    " + "\n    ".join(when_clauses) + f"\n    ELSE {masked_expr}\nEND"
-        return case_expr
-
-    @staticmethod
-    def hash_column(
-        column_name: str,
-        exempt_groups: Set[str] = None,
-        algorithm: str = "sha2"
-    ) -> str:
-        """
-        Generate SQL for hashing a column with role-based access.
-
-        Args:
-            column_name: Column to hash
-            exempt_groups: AD groups that see unmasked data
-            algorithm: Hash algorithm (sha2, md5)
-
-        Returns:
-            SQL expression for conditional hashing
-
-        Example:
-            hash_column("email", {"engineers"})
-            ->
-            CASE
-                WHEN is_account_group_member('engineers') THEN email
-                ELSE sha2(email, 256)
-            END
-        """
-        exempt_groups = exempt_groups or set()
-
-        # Generate base masking expression
-        if algorithm == "sha2":
-            masked = f"sha2({column_name}, 256)"
-        elif algorithm == "md5":
-            masked = f"md5({column_name})"
-        else:
-            masked = f"sha2({column_name}, 256)"  # Default to SHA-256
-
-        return MaskingFunctions._build_conditional_mask(
-            column_name, masked, exempt_groups
-        )
-
-    @staticmethod
-    def redact_column(
-        column_name: str,
-        exempt_groups: Set[str] = None,
-        replacement: str = "REDACTED"
-    ) -> str:
-        """
-        Generate SQL for full redaction with role-based access.
-
-        Args:
-            column_name: Column to redact
-            exempt_groups: AD groups that see unmasked data
-            replacement: Replacement text
-
-        Returns:
-            SQL expression for conditional redaction
-
-        Example:
-            redact_column("ssn", {"hr_team"})
-            ->
-            CASE
-                WHEN is_account_group_member('hr_team') THEN ssn
-                ELSE CASE WHEN ssn IS NOT NULL THEN 'REDACTED' ELSE NULL END
-            END
-        """
-        exempt_groups = exempt_groups or set()
-
-        # Generate base masking expression
-        masked = f"CASE WHEN {column_name} IS NOT NULL THEN '{replacement}' ELSE NULL END"
-
-        return MaskingFunctions._build_conditional_mask(
-            column_name, masked, exempt_groups
-        )
-
-    @staticmethod
-    def nullify_column(
-        column_name: str,
-        exempt_groups: Set[str] = None
-    ) -> str:
-        """
-        Generate SQL for nullification with role-based access.
-
-        Args:
-            column_name: Column to nullify
-            exempt_groups: AD groups that see unmasked data
-
-        Returns:
-            SQL expression for conditional nullification
-
-        Example:
-            nullify_column("salary", {"finance_team"})
-            ->
-            CASE
-                WHEN is_account_group_member('finance_team') THEN salary
-                ELSE NULL
-            END
-        """
-        exempt_groups = exempt_groups or set()
-
-        return MaskingFunctions._build_conditional_mask(
-            column_name, "NULL", exempt_groups
-        )
-
-    @staticmethod
-    def mask_email(
-        column_name: str,
-        exempt_groups: Set[str] = None
-    ) -> str:
-        """
-        Generate SQL for email masking with role-based access.
-
-        Masks email by showing first 2 chars and domain, hiding middle part.
-        Example: john.smith@example.com -> jo***@example.com
-
-        Args:
-            column_name: Email column to mask
-            exempt_groups: AD groups that see unmasked data
-
-        Returns:
-            SQL expression for conditional email masking
-
-        Example:
-            mask_email("email", {"sales_team"})
-            ->
-            CASE
-                WHEN is_account_group_member('sales_team') THEN email
-                ELSE CASE WHEN email IS NOT NULL AND INSTR(email, '@') > 0 THEN
-                    CONCAT(SUBSTRING(email, 1, 2), '***@', SUBSTRING(email, INSTR(email, '@') + 1))
-                ELSE NULL END
-            END
-        """
-        exempt_groups = exempt_groups or set()
-
-        # Generate base masking expression
-        masked = f"""CASE
-            WHEN {column_name} IS NOT NULL AND INSTR({column_name}, '@') > 0 THEN
-                CONCAT(
-                    SUBSTRING({column_name}, 1, 2),
-                    '***@',
-                    SUBSTRING({column_name}, INSTR({column_name}, '@') + 1)
-                )
-            ELSE NULL
-        END"""
-
-        return MaskingFunctions._build_conditional_mask(
-            column_name, masked, exempt_groups
-        )
-
-    @staticmethod
-    def mask_postcode(
-        column_name: str,
-        exempt_groups: Set[str] = None
-    ) -> str:
-        """
-        Generate SQL for UK postcode partial masking with role-based access.
-
-        Masks UK postcode by showing only the outward code (first part),
-        hiding the inward code.
-        Example: SW1A 2AA -> SW1A ***
-
-        Args:
-            column_name: Postcode column to mask
-            exempt_groups: AD groups that see unmasked data
-
-        Returns:
-            SQL expression for conditional postcode masking
-
-        Example:
-            mask_postcode("POST_CODE", {"data_team"})
-            ->
-            CASE
-                WHEN is_account_group_member('data_team') THEN POST_CODE
-                ELSE CASE WHEN POST_CODE IS NOT NULL THEN
-                    CONCAT(TRIM(REGEXP_EXTRACT(POST_CODE, '^([A-Z]{1,2}[0-9]{1,2}[A-Z]?)', 1)), ' ***')
-                ELSE NULL END
-            END
-        """
-        exempt_groups = exempt_groups or set()
-
-        # Generate base masking expression
-        masked = f"""CASE
-            WHEN {column_name} IS NOT NULL THEN
-                CONCAT(
-                    TRIM(REGEXP_EXTRACT({column_name}, '^([A-Z]{{1,2}}[0-9]{{1,2}}[A-Z]?)', 1)),
-                    ' ***'
-                )
-            ELSE NULL
-        END"""
-
-        return MaskingFunctions._build_conditional_mask(
-            column_name, masked, exempt_groups
-        )
-
-    @staticmethod
-    def mask_partial(
-        column_name: str,
-        exempt_groups: Set[str] = None,
-        visible_chars: int = 4,
-        position: str = "end",
-        mask_char: str = "*"
-    ) -> str:
-        """
-        Generate SQL for partial masking with role-based access.
-
-        Shows only a portion of the value, masks the rest.
-
-        Args:
-            column_name: Column to partially mask
-            exempt_groups: AD groups that see unmasked data
-            visible_chars: Number of characters to show
-            position: Which part to show ('start' or 'end')
-            mask_char: Character to use for masking
-
-        Returns:
-            SQL expression for conditional partial masking
-
-        Examples:
-            mask_partial("card_number", {"merchants"}, 4, "end")
-            -> Shows last 4 digits: ****1234
-
-            mask_partial("phone", {"support"}, 3, "start")
-            -> Shows first 3 digits: 123****
-        """
-        exempt_groups = exempt_groups or set()
-
-        # Generate base masking expression
-        if position == "end":
-            # Show last N characters
-            masked = f"""CASE
-                WHEN {column_name} IS NOT NULL THEN
-                    CONCAT(
-                        REPEAT('{mask_char}', GREATEST(0, LENGTH({column_name}) - {visible_chars})),
-                        SUBSTRING({column_name}, -{visible_chars})
-                    )
-                ELSE NULL
-            END"""
-        else:
-            # Show first N characters
-            masked = f"""CASE
-                WHEN {column_name} IS NOT NULL THEN
-                    CONCAT(
-                        SUBSTRING({column_name}, 1, {visible_chars}),
-                        REPEAT('{mask_char}', GREATEST(0, LENGTH({column_name}) - {visible_chars}))
-                    )
-                ELSE NULL
-            END"""
-
-        return MaskingFunctions._build_conditional_mask(
-            column_name, masked, exempt_groups
-        )
 
     @staticmethod
     def get_masking_expression(
         strategy: str,
         column_name: str,
         column_type: str,
-        exempt_groups: Set[str] = None
+        exempt_groups: Set[str] = None,
     ) -> str:
         """
-        Get masking SQL expression for a given strategy.
+        Get masking SQL expression body for a given strategy.
+
+        The returned expression uses 'val' as the parameter name and is
+        suitable for the RETURN clause of a CREATE FUNCTION statement.
+
+        For non-string columns, strategies that produce string output
+        (hash, redact, partial, mask_email, mask_postcode) fall back to
+        nullify since the UDF return type must match the column type.
 
         Args:
-            strategy: Masking strategy (hash, redact, partial, etc.)
-            column_name: Column to mask
-            column_type: Column data type
+            strategy: Masking strategy name
+            column_name: Column name (used only for error messages)
+            column_type: Column data type (determines type compatibility)
             exempt_groups: AD groups that see unmasked data
 
         Returns:
-            SQL expression for role-based masking
+            SQL expression body using 'val' as parameter
 
         Raises:
-            ValueError: If strategy is not supported
+            ValueError: If strategy is not recognised
         """
         exempt_groups = exempt_groups or set()
         strategy = strategy.lower()
 
-        if strategy == "hash":
-            return MaskingFunctions.hash_column(column_name, exempt_groups)
+        if strategy == "none":
+            return "val"
+
+        # For non-string columns, only nullify is type-safe
+        is_string = _is_string_type(column_type)
+
+        if strategy == "nullify" or not is_string:
+            return _nullify_expr(exempt_groups)
+        elif strategy == "hash":
+            return _hash_expr(exempt_groups)
         elif strategy == "redact":
-            return MaskingFunctions.redact_column(column_name, exempt_groups)
-        elif strategy == "nullify":
-            return MaskingFunctions.nullify_column(column_name, exempt_groups)
+            return _redact_expr(exempt_groups)
         elif strategy == "mask_email":
-            return MaskingFunctions.mask_email(column_name, exempt_groups)
+            return _mask_email_expr(exempt_groups)
         elif strategy == "mask_postcode":
-            return MaskingFunctions.mask_postcode(column_name, exempt_groups)
+            return _mask_postcode_expr(exempt_groups)
         elif strategy == "partial":
-            return MaskingFunctions.mask_partial(column_name, exempt_groups)
-        elif strategy == "none":
-            return column_name  # No masking
+            return _partial_expr(exempt_groups)
         else:
-            raise ValueError(f"Unsupported masking strategy: {strategy}")
+            raise ValueError(
+                f"Unsupported masking strategy '{strategy}' "
+                f"for column '{column_name}'"
+            )
+
+    @staticmethod
+    def get_function_name(
+        catalog: str,
+        schema: str,
+        table: str,
+        column_name: str,
+    ) -> str:
+        """
+        Generate a deterministic fully-qualified UDF name for a column mask.
+
+        Convention: {catalog}.{schema}.nova_mask_{table}_{column}
+
+        All parts are lowercased to avoid case-sensitivity issues.
+        """
+        safe_table = table.lower()
+        safe_column = column_name.lower()
+        return f"{catalog}.{schema}.nova_mask_{safe_table}_{safe_column}"
+
+    @staticmethod
+    def generate_create_function_sql(
+        function_name: str,
+        column_type: str,
+        masking_body: str,
+    ) -> str:
+        """
+        Generate CREATE OR REPLACE FUNCTION SQL for a masking UDF.
+
+        Args:
+            function_name: Fully-qualified function name
+            column_type: Column data type (used for parameter and return type)
+            masking_body: SQL expression body (from get_masking_expression)
+
+        Returns:
+            Complete CREATE OR REPLACE FUNCTION SQL statement
+        """
+        return (
+            f"CREATE OR REPLACE FUNCTION {function_name}(val {column_type})\n"
+            f"RETURNS {column_type}\n"
+            f"RETURN {masking_body}"
+        )
+
+    @staticmethod
+    def generate_set_mask_sql(
+        table: str,
+        column_name: str,
+        function_name: str,
+    ) -> str:
+        """
+        Generate ALTER TABLE ... SET MASK SQL.
+
+        Args:
+            table: Fully-qualified table name
+            column_name: Column to mask
+            function_name: Fully-qualified masking function name
+
+        Returns:
+            ALTER TABLE SQL statement
+        """
+        return (
+            f"ALTER TABLE {table}\n"
+            f"ALTER COLUMN {column_name}\n"
+            f"SET MASK {function_name}"
+        )
+
+    @staticmethod
+    def generate_drop_mask_sql(table: str, column_name: str) -> str:
+        """Generate ALTER TABLE ... DROP MASK SQL."""
+        return (
+            f"ALTER TABLE {table}\n"
+            f"ALTER COLUMN {column_name}\n"
+            f"DROP MASK"
+        )
+
+    @staticmethod
+    def generate_drop_function_sql(function_name: str) -> str:
+        """Generate DROP FUNCTION IF EXISTS SQL."""
+        return f"DROP FUNCTION IF EXISTS {function_name}"

@@ -141,12 +141,20 @@ class ColumnPrivacyMetadata:
         if isinstance(self.masking_strategy, str):
             self.masking_strategy = MaskingStrategy(self.masking_strategy)
 
+    # Classifications where the contract maskingStrategy field can override
+    # the default masking strategy. quasi_pii contains diverse data types
+    # (emails, postcodes, age bands) that may need different masking functions.
+    # Other classifications use their default strategy only.
+    _OVERRIDE_ALLOWED_CLASSIFICATIONS = frozenset({
+        PrivacyClassification.QUASI_PII,
+    })
+
     @property
     def requires_masking(self) -> bool:
-        """Check if this column requires masking."""
+        """Check if this column requires masking based on effective strategy."""
         return (
             self.privacy != PrivacyClassification.NONE and
-            self.masking_strategy != MaskingStrategy.NONE
+            self.effective_masking_strategy != MaskingStrategy.NONE
         )
 
     @property
@@ -154,15 +162,27 @@ class ColumnPrivacyMetadata:
         """
         Get effective masking strategy.
 
-        If contract specifies 'none', use default for privacy classification.
-        Otherwise use contract-specified strategy.
+        For classifications in _OVERRIDE_ALLOWED_CLASSIFICATIONS (currently
+        quasi_pii only), the contract maskingStrategy overrides the default.
+        For all other classifications, the default strategy for the privacy
+        classification is always used.
+
+        If the contract maskingStrategy is 'none' (or not specified), the
+        default strategy for the privacy classification is used regardless
+        of classification.
         """
-        if self.masking_strategy == MaskingStrategy.NONE:
-            return DEFAULT_MASKING_STRATEGIES.get(
-                self.privacy,
-                MaskingStrategy.NONE
-            )
-        return self.masking_strategy
+        # If contract specifies a strategy AND the classification allows overrides
+        if (
+            self.masking_strategy != MaskingStrategy.NONE
+            and self.privacy in self._OVERRIDE_ALLOWED_CLASSIFICATIONS
+        ):
+            return self.masking_strategy
+
+        # Use default for this privacy classification
+        return DEFAULT_MASKING_STRATEGIES.get(
+            self.privacy,
+            MaskingStrategy.NONE
+        )
 
 
 @dataclass

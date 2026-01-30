@@ -128,7 +128,8 @@ class AccessMetadataLoader:
                         table=qualified_table,
                         ad_group=ad_group,
                         privilege=UCPrivilege(privilege),
-                        reason=f"Role: {role_name} (inherits {inherits})"
+                        reason=f"Role: {role_name} (inherits {inherits})",
+                        role_name=role_name,
                     ))
         
         return intents
