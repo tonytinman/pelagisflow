@@ -1,0 +1,158 @@
+# Example Domain Mappings with Sensitivity-Aware Access Control
+# Location: /Volumes/{catalog}/contract_registry/access/domains/{domain}/domain.mappings.{env}.yaml
+
+domain: bronze_galahad
+
+mappings:
+  # ========================================================================
+  # ANALYST GROUPS - Varying sensitivity levels
+  # ========================================================================
+
+  analyst.general:
+    ad_groups:
+      - CLUK-CAZ-EDP-dev-data-analysts-general
+      - CLUK-CAZ-EDP-dev-business-analysts
+    # sensitive_access from domain.roles: [quasi_pii]
+    # These groups can see quasi-identifiers but PII is masked
+
+  analyst.sensitive:
+    ad_groups:
+      - CLUK-CAZ-EDP-dev-data-analysts-sensitive
+      - CLUK-CAZ-EDP-dev-customer-insights-team
+    # sensitive_access from domain.roles: [pii, quasi_pii]
+    # These groups can see PII and quasi-identifiers
+
+  analyst.special_category:
+    ad_groups:
+      - CLUK-CAZ-EDP-dev-senior-analysts
+      - CLUK-CAZ-EDP-dev-executive-analytics
+    # sensitive_access from domain.roles: [pii, quasi_pii, special]
+    # These groups can see all including special category data
+
+  # ========================================================================
+  # ENGINEER GROUPS - Minimal sensitive access
+  # ========================================================================
+
+  engineer.general:
+    ad_groups:
+      - CLUK-CAZ-EDP-dev-data-engineers
+      - CLUK-CAZ-EDP-dev-backend-engineers
+    # sensitive_access from domain.roles: [none]
+    # All sensitive data is masked for these groups
+
+  engineer.data_platform:
+    ad_groups:
+      - CLUK-CAZ-EDP-dev-platform-engineers
+      - CLUK-CAZ-EDP-dev-infrastructure-team
+    # sensitive_access from domain.roles: [quasi_pii]
+    # Can see quasi-identifiers for debugging
+
+  # ========================================================================
+  # SPECIALIST GROUPS - Domain-specific access
+  # ========================================================================
+
+  finance-specialist.customer-services:
+    ad_groups:
+      - CLUK-CAZ-EDP-dev-customer-services-finance-advisors
+      - CLUK-CAZ-EDP-dev-financial-advisors
+    # sensitive_access from domain.roles: [pii, financial_pii]
+    # Can see financial PII for customer service
+
+  hr-specialist:
+    ad_groups:
+      - CLUK-CAZ-EDP-dev-hr-team
+      - CLUK-CAZ-EDP-dev-people-analytics
+    # sensitive_access from domain.roles: [pii, hr, special]
+    # Can see HR data including special category
+
+  compliance-officer:
+    ad_groups:
+      - CLUK-CAZ-EDP-dev-compliance-team
+      - CLUK-CAZ-EDP-dev-gdpr-officers
+      - CLUK-CAZ-EDP-dev-data-protection-officers
+    # sensitive_access from domain.roles: [pii, quasi_pii, special, criminal, child, financial_pii, hr]
+    # Full access for audits and compliance
+
+  # ========================================================================
+  # ADMIN GROUPS
+  # ========================================================================
+
+  nova-admin:
+    ad_groups:
+      - CLUK-CAZ-EDP-dev-nova-admins
+      - CLUK-CAZ-EDP-dev-platform-admins
+    # sensitive_access from domain.roles: []
+    # Infrastructure admins - no sensitive data access
+
+# ========================================================================
+# HOW IT WORKS
+# ========================================================================
+#
+# For table: bronze_galahad.employee_records
+# With columns:
+#   - POSTCODE (privacy: quasi_pii)
+#   - EMAIL (privacy: pii)
+#   - SALARY (privacy: financial_pii)
+#   - DISABILITY_FLAG (privacy: special)
+#
+# Domain roles:
+#   analyst.general -> sensitive_access: [quasi_pii]
+#   analyst.sensitive -> sensitive_access: [pii, quasi_pii]
+#   finance-specialist.customer-services -> sensitive_access: [pii, financial_pii]
+#   hr-specialist -> sensitive_access: [pii, hr, special]
+#
+# AD group mappings:
+#   CLUK-CAZ-EDP-dev-data-analysts-general -> analyst.general
+#   CLUK-CAZ-EDP-dev-data-analysts-sensitive -> analyst.sensitive
+#   CLUK-CAZ-EDP-dev-customer-services-finance-advisors -> finance-specialist.customer-services
+#   CLUK-CAZ-EDP-dev-hr-team -> hr-specialist
+#
+# RESULT when querying:
+#
+# User in CLUK-CAZ-EDP-dev-data-analysts-general:
+#   POSTCODE: ✅ Clear (SW1A 2AA)
+#   EMAIL: 🔒 Masked (e3b0c44298fc1c...)
+#   SALARY: 🔒 Masked (5d41402abc4b2a...)
+#   DISABILITY_FLAG: 🔒 Masked (REDACTED)
+#
+# User in CLUK-CAZ-EDP-dev-data-analysts-sensitive:
+#   POSTCODE: ✅ Clear (SW1A 2AA)
+#   EMAIL: ✅ Clear (john.smith@example.com)
+#   SALARY: 🔒 Masked (5d41402abc4b2a...)
+#   DISABILITY_FLAG: 🔒 Masked (REDACTED)
+#
+# User in CLUK-CAZ-EDP-dev-customer-services-finance-advisors:
+#   POSTCODE: 🔒 Masked (SW1A ***)
+#   EMAIL: ✅ Clear (john.smith@example.com)
+#   SALARY: ✅ Clear (85000.00)
+#   DISABILITY_FLAG: 🔒 Masked (REDACTED)
+#
+# User in CLUK-CAZ-EDP-dev-hr-team:
+#   POSTCODE: 🔒 Masked (SW1A ***)
+#   EMAIL: ✅ Clear (john.smith@example.com)
+#   SALARY: 🔒 Masked (5d41402abc4b2a...)
+#   DISABILITY_FLAG: ✅ Clear (true)
+#
+# ========================================================================
+# SQL GENERATED FOR EMAIL COLUMN
+# ========================================================================
+#
+# ALTER TABLE bronze_galahad.employee_records
+# ALTER COLUMN EMAIL
+# SET MASK CASE
+#     WHEN is_account_group_member('CLUK-CAZ-EDP-dev-data-analysts-sensitive') THEN EMAIL
+#     WHEN is_account_group_member('CLUK-CAZ-EDP-dev-customer-insights-team') THEN EMAIL
+#     WHEN is_account_group_member('CLUK-CAZ-EDP-dev-customer-services-finance-advisors') THEN EMAIL
+#     WHEN is_account_group_member('CLUK-CAZ-EDP-dev-financial-advisors') THEN EMAIL
+#     WHEN is_account_group_member('CLUK-CAZ-EDP-dev-hr-team') THEN EMAIL
+#     WHEN is_account_group_member('CLUK-CAZ-EDP-dev-people-analytics') THEN EMAIL
+#     WHEN is_account_group_member('CLUK-CAZ-EDP-dev-compliance-team') THEN EMAIL
+#     WHEN is_account_group_member('CLUK-CAZ-EDP-dev-gdpr-officers') THEN EMAIL
+#     WHEN is_account_group_member('CLUK-CAZ-EDP-dev-data-protection-officers') THEN EMAIL
+#     ELSE CASE
+#         WHEN EMAIL IS NOT NULL AND INSTR(EMAIL, '@') > 0 THEN
+#             CONCAT(SUBSTRING(EMAIL, 1, 2), '***@', SUBSTRING(EMAIL, INSTR(EMAIL, '@') + 1))
+#         ELSE NULL
+#     END
+# END
+#

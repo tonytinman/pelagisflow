@@ -1,0 +1,344 @@
+apiVersion: v3.0.2
+kind: DataContract
+name: data.finance.employee_salary
+version: 1.0.0
+domain: finance
+dataProduct: finance_hr
+team:
+  - role: dataOwner
+    name: Finance Director
+    email: finance.director@canadalife.co.uk
+  - role: seniorManager
+    name: HR Director
+    email: hr.director@canadalife.co.uk
+  - role: dataSteward
+    name: Finance Data Steward
+    email: finance.steward@canadalife.co.uk
+
+schema:
+  name: bronze_finance
+  type: table
+  table: employee_salary
+  format: delta
+  description: Employee salary and compensation data
+  tags: [gdpr, pii, financial, hr]
+
+  properties:
+    # ========================================================================
+    # NON-SENSITIVE COLUMNS
+    # ========================================================================
+
+    - name: EMPLOYEE_ID
+      type: bigint
+      nullable: false
+      description: 'Internal employee identifier'
+      privacy: none  # Not sensitive by itself
+      maskingStrategy: none
+      isPrimaryKey: true
+      isChangeTracking: false
+      tags: []
+
+    - name: DEPARTMENT_CODE
+      type: string
+      nullable: true
+      description: 'Department code (aggregated)'
+      privacy: none  # Not sensitive (aggregated)
+      maskingStrategy: none
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: []
+
+    # ========================================================================
+    # QUASI-IDENTIFIERS (Indirect identifiers)
+    # ========================================================================
+
+    - name: AGE_BAND
+      type: string
+      nullable: true
+      description: 'Age band (e.g., 25-30, 31-35)'
+      privacy: quasi_pii  # Can identify when combined
+      maskingStrategy: none  # Default: partial masking
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [quasi-identifier]
+
+    - name: JOB_LEVEL
+      type: string
+      nullable: true
+      description: 'Job level (Junior, Mid, Senior)'
+      privacy: quasi_pii
+      maskingStrategy: none  # Default: partial masking
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [quasi-identifier]
+
+    - name: GENDER
+      type: string
+      nullable: true
+      description: 'Gender'
+      privacy: quasi_pii
+      maskingStrategy: none  # Default: partial masking
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [quasi-identifier]
+
+    - name: POSTCODE_AREA
+      type: string
+      nullable: true
+      description: 'Postcode area (first part only)'
+      privacy: quasi_pii
+      maskingStrategy: mask_postcode  # Custom: show only outward code
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [quasi-identifier, location]
+
+    # ========================================================================
+    # BASIC PERSONAL DATA (Direct identifiers) - GDPR Art. 4
+    # ========================================================================
+
+    - name: FIRST_NAME
+      type: string
+      nullable: true
+      description: 'Employee first name'
+      privacy: pii  # Direct identifier
+      maskingStrategy: hash  # Hash for analysis
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [pii, direct-identifier]
+
+    - name: LAST_NAME
+      type: string
+      nullable: true
+      description: 'Employee last name'
+      privacy: pii  # Direct identifier
+      maskingStrategy: hash  # Hash for analysis
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [pii, direct-identifier]
+
+    - name: EMAIL
+      type: string
+      nullable: true
+      description: 'Employee email address'
+      privacy: pii  # Direct identifier
+      maskingStrategy: mask_email  # Custom: jo***@example.com
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [pii, direct-identifier, contact]
+
+    - name: PHONE_NUMBER
+      type: string
+      nullable: true
+      description: 'Employee phone number'
+      privacy: pii
+      maskingStrategy: partial  # Show last 4 digits
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [pii, contact]
+
+    - name: NATIONAL_INSURANCE_NUMBER
+      type: string
+      nullable: true
+      description: 'UK National Insurance Number'
+      privacy: pii
+      maskingStrategy: hash  # Hash (irreversible)
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [pii, government-id]
+
+    # ========================================================================
+    # FINANCIAL PERSONAL DATA
+    # ========================================================================
+
+    - name: BASE_SALARY
+      type: decimal(18,2)
+      nullable: true
+      description: 'Base salary amount'
+      privacy: financial_pii
+      maskingStrategy: hash  # Hash for aggregation
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [financial, sensitive]
+
+    - name: BONUS
+      type: decimal(18,2)
+      nullable: true
+      description: 'Annual bonus amount'
+      privacy: financial_pii
+      maskingStrategy: hash
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [financial, sensitive]
+
+    - name: BANK_ACCOUNT_NUMBER
+      type: string
+      nullable: true
+      description: 'Bank account number (IBAN)'
+      privacy: financial_pii
+      maskingStrategy: partial  # Show last 4 digits
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [financial, payment, highly-sensitive]
+
+    - name: SORT_CODE
+      type: string
+      nullable: true
+      description: 'Bank sort code'
+      privacy: financial_pii
+      maskingStrategy: redact  # Full redaction
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [financial, payment]
+
+    - name: TAX_CODE
+      type: string
+      nullable: true
+      description: 'HMRC tax code'
+      privacy: financial_pii
+      maskingStrategy: redact  # Full redaction
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [financial, tax]
+
+    # ========================================================================
+    # HR DATA
+    # ========================================================================
+
+    - name: PERFORMANCE_RATING
+      type: string
+      nullable: true
+      description: 'Annual performance rating'
+      privacy: hr
+      maskingStrategy: hash
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [hr, sensitive]
+
+    - name: DISCIPLINARY_FLAG
+      type: boolean
+      nullable: true
+      description: 'Active disciplinary action flag'
+      privacy: hr
+      maskingStrategy: redact
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [hr, highly-sensitive]
+
+    # ========================================================================
+    # SPECIAL CATEGORY DATA - GDPR Art. 9 (HIGHEST RISK)
+    # ========================================================================
+
+    - name: DISABILITY_FLAG
+      type: boolean
+      nullable: true
+      description: 'Registered disability flag'
+      privacy: special  # Art. 9 - health data
+      maskingStrategy: redact  # Highest protection
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [special-category, gdpr-art9, health]
+
+    - name: ETHNICITY
+      type: string
+      nullable: true
+      description: 'Self-reported ethnicity'
+      privacy: special  # Art. 9 - racial/ethnic origin
+      maskingStrategy: redact  # Highest protection
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [special-category, gdpr-art9, diversity]
+
+    - name: RELIGION
+      type: string
+      nullable: true
+      description: 'Self-reported religion'
+      privacy: special  # Art. 9 - religious beliefs
+      maskingStrategy: redact  # Highest protection
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [special-category, gdpr-art9]
+
+    # ========================================================================
+    # METADATA
+    # ========================================================================
+
+    - name: CREATED_DATE
+      type: timestamp
+      nullable: false
+      description: 'Record creation timestamp'
+      privacy: none
+      maskingStrategy: none
+      isPrimaryKey: false
+      isChangeTracking: false
+      tags: [metadata]
+
+    - name: UPDATED_DATE
+      type: timestamp
+      nullable: true
+      description: 'Record last updated timestamp'
+      privacy: none
+      maskingStrategy: none
+      isPrimaryKey: false
+      isChangeTracking: true
+      tags: [metadata]
+
+customProperties:
+  sourceFormat: delta
+  rowCount: 15000
+  volume: S
+  inferredPrimaryKeys:
+    - EMPLOYEE_ID
+
+  governance:
+    classification: Confidential
+    containsPersonalData: true
+    specialCategoryData: true  # Contains Art. 9 data
+    dataResidency: UK
+    retention_period_days: 2555  # 7 years (UK employment law)
+    retention_rationale: UK GDPR + Employment Law requirements
+
+  accessControl:
+    read: []
+    readSensitive: []
+    write: []
+
+  # Privacy configuration (optional)
+  privacy:
+    enabled: true
+    allowPartialFailure: false
+    sensitivityLevels:
+      - quasi_pii  # 3 columns
+      - pii  # 5 columns
+      - financial_pii  # 5 columns
+      - hr  # 2 columns
+      - special  # 3 columns (HIGHEST RISK)
+
+_internal:
+  sample_row_count: 1500
+
+# ========================================================================
+# EXPECTED MASKING BEHAVIOR BY ROLE
+# ========================================================================
+#
+# Role: analyst.general (sensitive_access: [quasi_pii])
+#   ✅ See unmasked: AGE_BAND, JOB_LEVEL, GENDER, POSTCODE_AREA
+#   🔒 See masked: FIRST_NAME, EMAIL, SALARY, DISABILITY_FLAG, etc.
+#
+# Role: analyst.sensitive (sensitive_access: [pii, quasi_pii])
+#   ✅ See unmasked: All quasi_pii + all pii columns
+#   🔒 See masked: SALARY, BANK_ACCOUNT, DISABILITY_FLAG, etc.
+#
+# Role: finance-specialist.customer-services (sensitive_access: [pii, financial_pii])
+#   ✅ See unmasked: All pii + all financial_pii columns
+#   🔒 See masked: DISABILITY_FLAG, ETHNICITY, RELIGION
+#
+# Role: hr-specialist (sensitive_access: [pii, hr, special])
+#   ✅ See unmasked: All pii + all hr + all special category columns
+#   🔒 See masked: Financial columns (SALARY, BANK_ACCOUNT, etc.)
+#
+# Role: compliance-officer (sensitive_access: [pii, quasi_pii, special, financial_pii, hr])
+#   ✅ See unmasked: ALL sensitive columns
+#
+# Role: engineer.general (sensitive_access: [none])
+#   🔒 See masked: ALL sensitive columns
+#
