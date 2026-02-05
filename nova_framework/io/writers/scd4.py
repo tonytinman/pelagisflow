@@ -14,7 +14,7 @@ class SCD4Writer(AbstractWriter):
     
     Maintains two tables:
     - Current table: Latest version only (fast queries)
-    - Historical table: Full history with SCD2 pattern
+    - Historical table: Full history with T2CL pattern
     
     Use case: Large dimensions where current data needs to be fast
     """
@@ -52,11 +52,11 @@ class SCD4Writer(AbstractWriter):
         
         logger.info(f"SCD4 write to current={current_table}, history={historical_table}")
         
-        # Write to historical table using SCD2
-        from nova_framework.io.writers.scd2 import SCD2Writer
-        
-        scd2_writer = SCD2Writer(self.context, self.pipeline_stats)
-        scd2_stats = scd2_writer.write(
+        # Write to historical table using T2CL
+        from nova_framework.io.writers.t2cl import T2CLWriter
+
+        t2cl_writer = T2CLWriter(self.context, self.pipeline_stats)
+        t2cl_stats = t2cl_writer.write(
             df=df,
             target_table=historical_table,
             natural_key_col=natural_key_col,
@@ -69,9 +69,9 @@ class SCD4Writer(AbstractWriter):
         historical_df = self.spark.table(historical_table)
         current_df = historical_df.filter("is_current = true")
         
-        # Drop SCD2 columns for current table
-        scd2_cols = ["effective_from", "effective_to", "is_current", "deletion_flag"]
-        for col in scd2_cols:
+        # Drop T2CL columns for current table
+        t2cl_cols = ["effective_from", "effective_to", "is_current", "deletion_flag"]
+        for col in t2cl_cols:
             if col in current_df.columns:
                 current_df = current_df.drop(col)
         
@@ -92,5 +92,5 @@ class SCD4Writer(AbstractWriter):
             "current_table": current_table,
             "historical_table": historical_table,
             "current_rows": current_count,
-            "historical_stats": scd2_stats
+            "historical_stats": t2cl_stats
         }
