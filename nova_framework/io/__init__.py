@@ -6,7 +6,7 @@ Uses the Strategy pattern to support multiple read/write approaches.
 
 Main Components:
 - readers: Data reading strategies (file, table, stream)
-- writers: Data writing strategies (overwrite, append, type_2_change_log, scd4, file_export)
+- writers: Data writing strategies (overwrite, append, type_2_change_log, scd2, scd4, file_export)
 - factory: IOFactory for creating appropriate reader/writer instances
 
 Usage:
@@ -20,9 +20,14 @@ Usage:
     writer = IOFactory.create_writer_from_contract(context, stats)
     write_stats = writer.write(df)
 
-    # Or create specific writer
+    # Or create specific writer (T2CL without surrogate key)
     writer = IOFactory.create_writer("type_2_change_log", context, stats)
     write_stats = writer.write(df, soft_delete=True)
+
+    # Or SCD2 with surrogate key
+    writer = IOFactory.create_writer("scd2", context, stats)
+    write_stats = writer.write(df, soft_delete=True)
+    print(f"Max surrogate key: {write_stats['max_surrogate_key']}")
 """
 
 # Main factory
@@ -38,6 +43,7 @@ from nova_framework.io.writers.base import AbstractWriter
 from nova_framework.io.writers.overwrite import OverwriteWriter
 from nova_framework.io.writers.append import AppendWriter
 from nova_framework.io.writers.t2cl import T2CLWriter
+from nova_framework.io.writers.scd2 import SCD2Writer
 from nova_framework.io.writers.scd4 import SCD4Writer
 from nova_framework.io.writers.file_export import FileExportWriter
 
@@ -56,6 +62,7 @@ __all__ = [
     "OverwriteWriter",
     "AppendWriter",
     "T2CLWriter",
+    "SCD2Writer",
     "SCD4Writer",
     "FileExportWriter",
 ]
