@@ -16,9 +16,61 @@ class T2CLWriter(AbstractWriter):
 
     Maintains full history of changes with effective dates.
     Creates new row for changes, marks old row as not current.
+    Automatically creates/refreshes a materialized view for current position.
 
     Use case: Customer data, product data, any dimension that needs history
     """
+
+    def _get_current_view_name(self, target_table: str) -> str:
+        """
+        Generate the materialized view name for current position.
+
+        Format: mv_{schema}.{table}_curr
+        Example: catalog.schema.customers -> catalog.mv_schema.customers_curr
+        """
+        parts = target_table.split(".")
+        if len(parts) == 3:
+            catalog, schema, table = parts
+            return f"{catalog}.mv_{schema}.{table}_curr"
+        elif len(parts) == 2:
+            schema, table = parts
+            return f"mv_{schema}.{table}_curr"
+        else:
+            return f"mv_{target_table}_curr"
+
+    def _refresh_current_view(self, target_table: str) -> str:
+        """
+        Create or refresh the materialized view for current position.
+
+        Returns the view name.
+        """
+        view_name = self._get_current_view_name(target_table)
+
+        # Drop T2CL metadata columns for the current view
+        t2cl_cols = ["effective_from", "effective_to", "is_current", "deletion_flag"]
+
+        # Get table columns excluding T2CL metadata
+        table_df = self.spark.table(target_table)
+        select_cols = [col for col in table_df.columns if col not in t2cl_cols]
+        select_clause = ", ".join(select_cols)
+
+        # Create or replace materialized view
+        create_mv_sql = f"""
+            CREATE OR REPLACE MATERIALIZED VIEW {view_name} AS
+            SELECT {select_clause}
+            FROM {target_table}
+            WHERE is_current = true AND deletion_flag = false
+        """
+
+        logger.info(f"Creating/refreshing materialized view: {view_name}")
+        self.spark.sql(create_mv_sql)
+
+        # Refresh the materialized view to ensure it's up to date
+        refresh_sql = f"REFRESH MATERIALIZED VIEW {view_name}"
+        self.spark.sql(refresh_sql)
+
+        logger.info(f"Materialized view refreshed: {view_name}")
+        return view_name
 
     def write(
         self,
@@ -73,10 +125,14 @@ class T2CLWriter(AbstractWriter):
             row_count = incoming_prepared.count()
             self._log_write_stats(row_count, "t2cl_first_load")
 
+            # Create/refresh current position materialized view
+            current_view = self._refresh_current_view(target)
+
             return {
                 "strategy": "type_2_change_log",
                 "first_load": True,
                 "target_table": target,
+                "current_view": current_view,
                 "records_inserted": row_count
             }
 
@@ -184,9 +240,13 @@ class T2CLWriter(AbstractWriter):
 
         logger.info(f"T2CL merge complete: new={new_count}, changed={changed_count}, deleted={deleted_count}")
 
+        # Create/refresh current position materialized view
+        current_view = self._refresh_current_view(target)
+
         return {
             "strategy": "type_2_change_log",
             "target_table": target,
+            "current_view": current_view,
             "new_records": new_count,
             "changed_records": changed_count,
             "soft_deleted": deleted_count,
