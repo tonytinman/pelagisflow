@@ -18,7 +18,7 @@ class WriteStage(AbstractStage):
     customProperties.writeStrategy setting:
     - overwrite: Full table refresh
     - append: Append-only writes
-    - scd2: Slowly Changing Dimension Type 2
+    - type_2_change_log: Type 2 Change Log
     - scd4: Current + Historical tables
     - file_export: Export to file
     
@@ -39,7 +39,7 @@ class WriteStage(AbstractStage):
         Write data to target.
         
         The write strategy is determined by contract configuration:
-        customProperties.writeStrategy (defaults to "scd2")
+        customProperties.writeStrategy (defaults to "type_2_change_log")
         
         Args:
             df: Input DataFrame to write
@@ -50,11 +50,11 @@ class WriteStage(AbstractStage):
         Example:
             # Contract specifies:
             # customProperties:
-            #   writeStrategy: scd2
+            #   writeStrategy: type_2_change_log
             #   softDelete: true
-            
+
             stage.execute(df)
-            # Writes using SCD2Writer with soft delete enabled
+            # Writes using T2CLWriter with soft delete enabled
         """
         self.logger.info("Starting write operation")
         
@@ -80,20 +80,20 @@ class WriteStage(AbstractStage):
         self.stats.log_rows_written(rows_written)
         
         # Log strategy-specific metrics
-        if strategy == "scd2":
+        if strategy == "type_2_change_log":
             new_records = write_stats.get("new_records", 0)
             changed_records = write_stats.get("changed_records", 0)
             soft_deleted = write_stats.get("soft_deleted", 0)
-            
+
             self.logger.info(
-                f"SCD2 write complete: {rows_written} records written "
+                f"T2CL write complete: {rows_written} records written "
                 f"({new_records} new, {changed_records} changed, {soft_deleted} deleted) "
                 f"to {target}"
             )
-            
-            self.stats.log_stat("scd2_new_records", new_records)
-            self.stats.log_stat("scd2_changed_records", changed_records)
-            self.stats.log_stat("scd2_soft_deleted", soft_deleted)
+
+            self.stats.log_stat("t2cl_new_records", new_records)
+            self.stats.log_stat("t2cl_changed_records", changed_records)
+            self.stats.log_stat("t2cl_soft_deleted", soft_deleted)
             
         elif strategy == "scd4":
             current_rows = write_stats.get("current_rows", 0)

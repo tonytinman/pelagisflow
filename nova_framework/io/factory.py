@@ -7,6 +7,7 @@ from nova_framework.io.readers.table_reader import TableReader
 from nova_framework.io.writers.base import AbstractWriter
 from nova_framework.io.writers.overwrite import OverwriteWriter
 from nova_framework.io.writers.append import AppendWriter
+from nova_framework.io.writers.t2cl import T2CLWriter
 from nova_framework.io.writers.scd2 import SCD2Writer
 from nova_framework.io.writers.scd4 import SCD4Writer
 from nova_framework.io.writers.file_export import FileExportWriter
@@ -60,21 +61,22 @@ class IOFactory:
     ) -> AbstractWriter:
         """
         Create writer based on type.
-        
+
         Args:
-            writer_type: Type of writer ('overwrite', 'append', 'scd2', 'scd4', 'file_export')
+            writer_type: Type of writer ('overwrite', 'append', 'type_2_change_log', 'scd2', 'scd4', 'file_export')
             context: Pipeline context
             pipeline_stats: Statistics tracker
-            
+
         Returns:
             Concrete writer instance
-            
+
         Raises:
             ValueError: If writer_type is unknown
         """
         writers = {
             "overwrite": OverwriteWriter,
             "append": AppendWriter,
+            "type_2_change_log": T2CLWriter,
             "scd2": SCD2Writer,
             "scd4": SCD4Writer,
             "file_export": FileExportWriter
@@ -108,6 +110,6 @@ class IOFactory:
             Appropriate writer for contract
         """
         # Get write strategy from contract
-        write_strategy = context.contract.get("customProperties.writeStrategy", "scd2")
+        write_strategy = context.contract.get("customProperties.writeStrategy", "type_2_change_log")
         
         return IOFactory.create_writer(write_strategy, context, pipeline_stats)

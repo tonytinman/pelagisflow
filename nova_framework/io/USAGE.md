@@ -43,13 +43,13 @@ write_stats = writer.write(df)
 ```python
 # Import specific classes
 from nova_framework.io.readers import FileReader, TableReader
-from nova_framework.io.writers import SCD2Writer, OverwriteWriter
+from nova_framework.io.writers import T2CLWriter, OverwriteWriter
 
 # Use directly
 reader = FileReader(context, stats)
 df, report = reader.read()
 
-writer = SCD2Writer(context, stats)
+writer = T2CLWriter(context, stats)
 write_stats = writer.write(df, soft_delete=True)
 ```
 
@@ -57,10 +57,10 @@ write_stats = writer.write(df, soft_delete=True)
 
 ```python
 # Import from main io module
-from nova_framework.io import IOFactory, FileReader, SCD2Writer
+from nova_framework.io import IOFactory, FileReader, T2CLWriter
 
 reader = FileReader(context, stats)
-writer = SCD2Writer(context, stats)
+writer = T2CLWriter(context, stats)
 ```
 
 ## Reader Usage
@@ -117,7 +117,7 @@ df, report = reader.read(
 ```yaml
 # In your data contract YAML
 customProperties:
-  writeStrategy: scd2  # or overwrite, append, scd4, file_export
+  writeStrategy: type_2_change_log  # or overwrite, append, scd4, file_export
   softDelete: true
 ```
 
@@ -173,12 +173,12 @@ if write_stats['deduplicated']:
     print(f"Duplicates removed: {write_stats['dedup_removed']}")
 ```
 
-#### SCD2Writer
+#### T2CLWriter
 
 ```python
 from nova_framework.io.factory import IOFactory
 
-writer = IOFactory.create_writer("scd2", context, stats)
+writer = IOFactory.create_writer("type_2_change_log", context, stats)
 
 write_stats = writer.write(
     df,
@@ -205,7 +205,7 @@ writer = IOFactory.create_writer("scd4", context, stats)
 
 # Creates two tables:
 # - {table}_current (fast queries, latest version only)
-# - {table}_history (full SCD2 history)
+# - {table}_history (full T2CL history)
 write_stats = writer.write(
     df,
     current_table=None,  # Auto-generated: {base}_current
@@ -349,7 +349,7 @@ def run_transformation_pipeline(
 
 ## Contract Examples
 
-### Ingestion Contract with SCD2
+### Ingestion Contract with T2CL
 
 ```yaml
 apiVersion: v3.0.2
@@ -376,9 +376,9 @@ schema:
 
 customProperties:
   volume: M
-  writeStrategy: scd2
+  writeStrategy: type_2_change_log
   softDelete: true
-  
+
 quality:
   - rule: not_null
     severity: critical
@@ -456,27 +456,27 @@ customProperties:
 ```python
 import pytest
 from unittest.mock import Mock, patch
-from nova_framework.io.writers import SCD2Writer
+from nova_framework.io.writers import T2CLWriter
 
-def test_scd2_writer_first_load(spark_session):
-    """Test SCD2 first load creates table correctly."""
+def test_t2cl_writer_first_load(spark_session):
+    """Test T2CL first load creates table correctly."""
     # Setup
     context = Mock()
     context.catalog = "test_catalog"
     context.contract.schema_name = "test_schema"
     context.contract.table_name = "test_table"
-    
+
     stats = Mock()
-    
+
     df = spark_session.createDataFrame([
         (1, "Alice", 100),
         (2, "Bob", 200)
     ], ["id", "name", "natural_key_hash"])
-    
+
     # Execute
-    writer = SCD2Writer(context, stats)
+    writer = T2CLWriter(context, stats)
     result = writer.write(df, natural_key_col="natural_key_hash")
-    
+
     # Assert
     assert result["first_load"] == True
     assert result["records_inserted"] == 2
@@ -502,9 +502,9 @@ def test_full_pipeline_with_io_module(spark_session):
     reader = IOFactory.create_reader("file", context, stats)
     df, report = reader.read()
     
-    writer = IOFactory.create_writer("scd2", context, stats)
+    writer = IOFactory.create_writer("type_2_change_log", context, stats)
     write_stats = writer.write(df)
-    
+
     # Verify
     assert report["total_rows"] > 0
     assert write_stats["records_inserted"] > 0
@@ -518,7 +518,7 @@ def test_full_pipeline_with_io_module(spark_session):
 # OLD: Direct use of PipelineFunctions
 from nova_framework.pipeline.pipeline import PipelineFunctions
 
-merge_stats = PipelineFunctions.merge_scd2(
+merge_stats = PipelineFunctions.merge_t2cl(
     df_with_quality,
     fq_target_table,
     pipeline_stats=self.pipeline_stats
@@ -537,11 +537,11 @@ write_stats = writer.write(df_with_quality)
 
 ### Migration Checklist
 
-- [ ] Replace `PipelineFunctions.merge_scd2()` calls with `IOFactory.create_writer()`
-- [ ] Add `writeStrategy` to contracts that need non-SCD2 writes
+- [ ] Replace `PipelineFunctions.merge_t2cl()` calls with `IOFactory.create_writer()`
+- [ ] Add `writeStrategy` to contracts that need non-T2CL writes
 - [ ] Update imports from `nova_framework.pipeline` to `nova_framework.io`
 - [ ] Test each pipeline with new I/O module
-- [ ] Remove old `PipelineFunctions.merge_scd2()` method
+- [ ] Remove old `PipelineFunctions.merge_t2cl()` method
 - [ ] Update documentation
 
 ## Troubleshooting
@@ -560,7 +560,7 @@ ls nova_framework/io/writers/__init__.py
 **Solution:** Check contract configuration:
 ```yaml
 customProperties:
-  writeStrategy: scd2  # Must be: overwrite, append, scd2, scd4, or file_export
+  writeStrategy: type_2_change_log  # Must be: overwrite, append, type_2_change_log, scd4, or file_export
 ```
 
 ### Writer not using contract configuration
@@ -571,10 +571,10 @@ customProperties:
 writer = IOFactory.create_writer_from_contract(context, stats)
 
 # Not this
-writer = IOFactory.create_writer("scd2", context, stats)  # Ignores contract
+writer = IOFactory.create_writer("type_2_change_log", context, stats)  # Ignores contract
 ```
 
-### SCD2 not detecting changes
+### T2CL not detecting changes
 
 **Solution:** Ensure hash columns are present:
 ```python
@@ -588,7 +588,7 @@ writer = IOFactory.create_writer("scd2", context, stats)  # Ignores contract
 
 1. **Use IOFactory** - Always use factory for consistency
 2. **Contract-driven** - Specify `writeStrategy` in contracts
-3. **Default to SCD2** - Use SCD2 for dimensions unless you have a reason not to
+3. **Default to T2CL** - Use T2CL for dimensions unless you have a reason not to
 4. **Test each writer** - Unit test each write strategy independently
 5. **Validate contracts** - Ensure contracts have required fields for each writer
 6. **Log write stats** - Always check write stats for debugging
