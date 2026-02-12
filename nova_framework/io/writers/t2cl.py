@@ -136,8 +136,8 @@ class T2CLWriter(AbstractWriter):
                 "records_inserted": row_count
             }
 
-        # Load current active records
-        current = self.spark.table(target).filter("is_current = true")
+        # Load current active records - cache to prevent re-evaluation after table mutations
+        current = self.spark.table(target).filter("is_current = true").cache()
 
         # Identify new, changed, unchanged rows
         joined = incoming_prepared.alias("i").join(
@@ -151,7 +151,7 @@ class T2CLWriter(AbstractWriter):
         changed = (
             joined
             .filter(F.col(f"c.{natural_key_col}").isNotNull())
-            .filter(F.col(f"i.{change_key_col}") != F.col(f"c.{change_key_col}"))
+            .filter(~F.col(f"i.{change_key_col}").eqNullSafe(F.col(f"c.{change_key_col}")))
             .select("i.*")
         )
 
@@ -180,18 +180,14 @@ class T2CLWriter(AbstractWriter):
                     }
                 )
 
-                # Create tombstone rows
+                # Create tombstone rows (select all columns, overwrite metadata)
                 deleted_df = (
                     current.join(missing, natural_key_col)
-                    .select(
-                        natural_key_col,
-                        change_key_col,
-                        partition_col,
-                        F.lit(process_date).cast("date").alias("effective_from"),
-                        F.lit("9999-12-31").cast("date").alias("effective_to"),
-                        F.lit(True).alias("is_current"),
-                        F.lit(True).alias("deletion_flag")
-                    )
+                    .select(*[F.col(c) for c in current.columns])
+                    .withColumn("effective_from", F.lit(process_date).cast("date"))
+                    .withColumn("effective_to", F.lit("9999-12-31").cast("date"))
+                    .withColumn("is_current", F.lit(True))
+                    .withColumn("deletion_flag", F.lit(True))
                 )
 
                 logger.info(f"Soft deletes detected: {deleted_df.count()}")
@@ -239,6 +235,9 @@ class T2CLWriter(AbstractWriter):
         self.pipeline_stats.log_stat("t2cl_deleted", deleted_count)
 
         logger.info(f"T2CL merge complete: new={new_count}, changed={changed_count}, deleted={deleted_count}")
+
+        # Release cached current DataFrame
+        current.unpersist()
 
         # Create/refresh current position materialized view
         current_view = self._refresh_current_view(target)

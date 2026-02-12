@@ -243,8 +243,8 @@ class SCD2Writer(AbstractWriter):
                 "max_surrogate_key": max_sk
             }
 
-        # Load current active records
-        current = self.spark.table(target).filter("is_current = true")
+        # Load current active records - cache to prevent re-evaluation after table mutations
+        current = self.spark.table(target).filter("is_current = true").cache()
 
         # Identify new, changed, unchanged rows
         joined = incoming_prepared.alias("i").join(
@@ -258,7 +258,7 @@ class SCD2Writer(AbstractWriter):
         changed = (
             joined
             .filter(F.col(f"c.{natural_key_col}").isNotNull())
-            .filter(F.col(f"i.{change_key_col}") != F.col(f"c.{change_key_col}"))
+            .filter(~F.col(f"i.{change_key_col}").eqNullSafe(F.col(f"c.{change_key_col}")))
             .select("i.*")
         )
 
@@ -353,6 +353,9 @@ class SCD2Writer(AbstractWriter):
         self.pipeline_stats.log_stat("scd2_max_sk", new_max_sk)
 
         logger.info(f"SCD2 merge complete: new={new_count}, changed={changed_count}, deleted={deleted_count}, max_sk={new_max_sk}")
+
+        # Release cached current DataFrame
+        current.unpersist()
 
         # Create/refresh current position materialized view
         current_view = self._refresh_current_view(target)
